@@ -1,0 +1,993 @@
+\documentclass[aspectratio=169]{beamer}
+\usepackage{bm}
+\usepackage{cmbright}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{dcolumn}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{natbib}
+\bibpunct[: ]{(}{)}{;}{a}{}{,}
+\usepackage{tikz}
+\usetikzlibrary{positioning,mindmap,trees}
+\usepackage{tikz-3dplot}
+\definecolor{gray}{RGB}{155,155,155}
+\definecolor{bggray}{RGB}{220,220,220}
+\definecolor{bamberg3}{RGB}{153, 179, 202}
+\definecolor{bamberg4}{RGB}{204, 217, 228}
+
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{navigation symbols}{}
+
+\setbeamercolor{frametitle}{fg=black}
+\setbeamercolor{frametitle}{bg=black!10!white}
+\setbeamerfont{frametitle}{size=\Large}
+
+\setbeamercolor*{title}{bg=white,fg=black}
+\setbeamercolor{alerted text}{fg=orange}
+\setbeamertemplate{blocks}[rounded][shadow=true]
+%\addtobeamertemplate{block begin}{\pgfsetfillopacity{0.8}}{\pgfsetfillopacity{1}}
+\setbeamercolor*{block title}{fg=white,bg=black!10!black}
+\setbeamercolor*{block body}{fg=black!90!black,bg=black!10!white}
+\setbeamercolor{item}{fg=gray} % color of bullets
+\setbeamercolor{subitem}{fg=gray}
+\setbeamercolor{itemize/enumerate subbody}{fg=black}
+
+\setbeamercolor{section in toc}{fg=black}
+\setbeamercolor{subsection in toc}{fg=black}
+\setbeamertemplate{section in toc}[sections numbered]
+\setbeamertemplate{subsection in toc}[subsections numbered]
+
+\newcommand\Wider[2][4em]{%
+  \makebox[\linewidth][c]{%
+    \begin{minipage}{\dimexpr\textwidth+#1\relax}
+      \raggedright#2
+    \end{minipage}%
+  }%
+}
+
+\AtBeginSection[]
+{
+  \begin{frame}
+  \frametitle{Table of contents}
+  \tableofcontents[currentsection]
+  \end{frame}
+}
+
+% reduce spacing between code chunk and printed console output
+\setlength{\OuterFrameSep}{2pt}
+\makeatletter
+\preto{\@verbatim}{\topsep=-8pt \partopsep=-8pt }
+\makeatother
+
+\title{Exponential Random Graph Models: Specification}
+\author{Developed by Philip Leifeld and delivered by Yan Wang}
+\date{Statistical Models for Social Networks \\
+      SOST71032 $\mid$ Lecture 2 $\mid$ 16 March 2026}
+\titlegraphic{\includegraphics[width=3.5cm]{logo-manchester}}
+
+\begin{document}
+
+<<setup, include=FALSE, cache=FALSE>>=
+library("knitr")
+# set global chunk options
+opts_chunk$set(fig.path = 'figure/fig-', fig.align = 'center', fig.show = 'hold', cache = TRUE)
+#options(formatR.arrow = TRUE, width = 70)
+knit_hooks$set(crop = hook_pdfcrop)
+knitr::opts_chunk$set(dev = 'pdf', crop = TRUE)
+@
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\section{The exponential random graph model: a generative probability model}
+
+\begin{frame}
+	\frametitle{Some useful concepts for inferential network modelling}
+	\begin{itemize}
+		\item Topology; structure.
+		\item Exogenous covariate; attribute; exogenous relation.
+		\item Endogeneity; endogenous process; network statistic.
+		\item Data-generating process (DGP).
+		\item Observation.
+		\item Deterministic vs.\ stochastic processes.
+		\item Local interaction.
+		\item Emergence.
+		\item Parametric model.
+		\item Estimation.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{ERGM theory: properties of networks}
+	\begin{block}{\citet[10]{lusher2013exponential}}
+		\begin{itemize}
+			\item Social networks are locally emergent.
+			\item Network ties not only self-organize (i.\,e., there are dependencies between ties), but they are also influenced by actor attributes and other exogenous factors.
+			\item The patterns within networks can be seen as evidence for ongoing structural processes.
+			\item Multiple processes can operate simultaneously.
+			\item Social networks are structured, yet stochastic.
+		\end{itemize}
+	\end{block}
+\end{frame}
+
+\begin{frame}
+	\frametitle{The exponential random graph model}
+	\begin{equation*}
+		\alert<2>{P(N, \boldsymbol{\theta})} = \alert<7>{\frac{\alert<5>{\exp\{\alert<4>{\boldsymbol{\theta}}^\top \alert<3,8>{\mathbf{h}(N)} \}}}{\alert<6>{\sum_{N^* \in \mathcal{N}} \exp\{\boldsymbol{\theta}^\top \mathbf{h}(N^*)\}}}}
+	\end{equation*}
+	\begin{itemize}
+		\only<1>{\item Probability density function of the cross-sectional ERGM.}
+		\only<2>{\item \alert{Probability that we observe this particular network.}}
+		\only<3>{\item \alert{$\mathbf{h}(N)$ are \emph{network statistics}.}}
+		\only<4>{\item \alert{Coefficients (to be estimated).}}
+		\only<5>{\item \alert{Exponential function of the sum of the weighted statistics.}}
+		\only<6>{\item \alert{The sum of the same for all possible topologies.}}
+		\only<7>{\item \alert{Probability of a given network over all networks one could have observed.}}
+		\only<8>{\item \alert{Task: define $\mathbf{h}(N)$ in order to operationalize theory.}}
+	\end{itemize}
+\end{frame}
+
+\section{Model specification}
+
+\begin{frame}
+	\frametitle{Number of edges}
+	\[
+	h_{\text{edges}} = \sum_{i \neq j} N_{ij}
+	\]
+	\bigskip
+	\begin{center}
+		\begin{tikzpicture}[node distance=10mm and 6mm, 
+			knoten/.style={inner sep=0pt, minimum size=6mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+			\node[knoten] (i1) {$i$};
+			\node[knoten, right=of i1] (j1) {$j$};
+			\draw[->, bamberg3, line width=0.5mm] (i1) -- (j1);
+		\end{tikzpicture}
+	\end{center}
+	
+	\bigskip
+	
+	Captures the baseline probability of being connected.
+	
+	\bigskip
+	
+	Causes the density of the network.
+	
+	\bigskip
+	
+	Name of the network statistic in \texttt{PNet}: \texttt{Edge} or \texttt{Arc}.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Dyadic covariate}
+	\[
+	h_{\text{edgecov}} = \sum_{i \neq j} N_{ij} X_{ij}
+	\]
+	\bigskip
+	\begin{center}
+		\begin{tikzpicture}[node distance=10mm and 6mm, 
+			knoten/.style={inner sep=0pt, minimum size=6mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+			\node[knoten] (i1) {$i$};
+			\node[knoten, right=of i1] (j1) {$j$};
+			\draw[->, bamberg3, line width=0.5mm] (i1.25) -- (j1.155);
+			\draw[->, bamberg3, line width=0.5mm, black] (i1.335) -- (j1.205);
+		\end{tikzpicture}
+	\end{center}
+	
+	\bigskip
+	
+	This configuration captures clustering of multiple network relations in dyads.
+	
+	\bigskip
+	
+	Example: Does marriage in the Florentine families network create business relations?
+	
+	\bigskip
+	
+	Name of the network statistic in \texttt{PNet}: \texttt{Dyadic Attribute} $\rightarrow$ \texttt{Edge covariate}.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Covariates for sender and receiver}
+	\[
+	h_{\text{nodeocov}} = \sum_{i \neq j} N_{ij} x_{i}
+	\]
+	\begin{center}
+		\begin{tikzpicture}[node distance=10mm and 6mm, 
+			knoten/.style={inner sep=0pt, minimum size=6mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+			\node[knoten, draw=black] (i1) {$i$};
+			\node[knoten, right=of i1] (j1) {$j$};
+			\draw[->, bamberg3, line width=0.5mm] (i1) -- (j1);
+		\end{tikzpicture}
+	\end{center}
+	
+	\medskip
+	
+	\[
+	h_{\text{nodeicov}} = \sum_{i \neq j} N_{ij} x_{j}
+	\]
+	\begin{center}
+		\begin{tikzpicture}[node distance=10mm and 6mm, 
+			knoten/.style={inner sep=0pt, minimum size=6mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+			\node[knoten] (i1) {$i$};
+			\node[knoten, draw=black, right=of i1] (j1) {$j$};
+			\draw[->, bamberg3, line width=0.5mm] (i1) -- (j1);
+		\end{tikzpicture}
+	\end{center}
+	
+	\bigskip
+	
+	This term captures the effect of sender or receiver attributes.
+	
+	\bigskip
+	
+	Example: Do narcissists befriend more people? Are they befriended more often?
+	
+	\bigskip
+	
+	Name of the network statistic in \texttt{PNet}: \texttt{Actor-specific effects} $\rightarrow$ \texttt{Sender attribute} or \texttt{receiver attribute}.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Reciprocity}
+	\[
+	h_\text{mutual} = \sum_{i \neq j} N_{ij}N_{ji}
+	\]
+	\bigskip
+	\begin{center}
+		\begin{tikzpicture}[node distance=10mm and 6mm, 
+			knoten/.style={inner sep=0pt, minimum size=6mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+			\node[knoten] (i1) {$i$};
+			\node[knoten, right=of i1] (j1) {$j$};
+			\draw[->, bamberg3, line width=0.5mm] (i1.25) -- (j1.155);
+			\draw[->, bamberg3, line width=0.5mm] (j1.205) -- (i1.335);
+		\end{tikzpicture}
+	\end{center}
+	
+	\bigskip
+	
+	Are ties in the network often reciprocated?
+	
+	\bigskip
+	
+	Example: Do email recipients often send emails back to the sender?
+	
+	\bigskip
+	
+	Name of the network statistic in \texttt{PNet}: \texttt{Reciprocity}.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Two-stars and three-stars}
+	\begin{center}
+		\[
+		h_{\text{in-two-star}} = \sum_{i, j, k} N_{ji} N_{ki} (1 - N_{jk}) (1 - N_{kj})
+		\]
+		\begin{tikzpicture}[node distance=10mm and 6mm, 
+			knoten/.style={inner sep=0pt, minimum size=6mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+			
+			% in-two-star
+			\node[knoten] (i1) {$i$};
+			\node[knoten, below left=of i1] (j1) {$j$};
+			\node[knoten, below right=of i1] (k1) {$k$};
+			\draw[->, bamberg3, line width=0.5mm] (j1) -- (i1);
+			\draw[->, bamberg3, line width=0.5mm] (k1) -- (i1);
+			\node[above=1mm of i1] {Incoming 2-star};
+			
+			% out-two-star
+			\node[knoten, right=of k1] (j2) {$j$};
+			\node[knoten, above right=of j2] (i2) {$i$};
+			\node[knoten, below right=of i2] (k2) {$k$};
+			\draw[->, bamberg3, line width=0.5mm] (i2) -- (j2);
+			\draw[->, bamberg3, line width=0.5mm] (i2) -- (k2);
+			\node[above=1mm of i2] {Outgoing 2-star};
+			
+			% out-three-star
+			\node[knoten, right=of k2] (j3) {$j$};
+			\node[knoten, above right=of j3] (i3) {$i$};
+			\node[knoten, below right=of i3] (l3) {$l$};
+			\node[knoten, below=of i3] (k3) {$k$};
+			\draw[->, bamberg3, line width=0.5mm] (i3) -- (j3);
+			\draw[->, bamberg3, line width=0.5mm] (i3) -- (k3);
+			\draw[->, bamberg3, line width=0.5mm] (i3) -- (l3);
+			\node[above=1mm of i3] {Outgoing 3-star};
+		\end{tikzpicture}
+	\end{center}
+	
+	\bigskip
+	
+	Popularity ($\approx$ preferential attachment) and activity effects.
+	
+	\bigskip
+	
+	Do incoming or outgoing ties cluster together in nodes?
+	
+	\bigskip
+	
+	Name of the network statistic in \texttt{PNet}: \texttt{In-2-star}, \texttt{out-2-star}, and \texttt{out-3-star}.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Edge-wise shared partners and two-paths}
+	\begin{columns}
+		\column{0.2\textwidth}
+		\[
+		h_{\text{esp}} = \sum_{i, j, k} N_{ij} N_{jk} N_{ik}
+		\]
+		\begin{center}
+			\begin{tikzpicture}[node distance=10mm and 6mm, 
+				knoten/.style={inner sep=0pt, minimum size=6mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+				\node[knoten] (j1) {$j$};
+				\node[knoten, below left=of j1] (i1) {$i$};
+				\node[knoten, below right=of j1] (k1) {$k$};
+				\draw[->, bamberg3, line width=0.5mm] (i1) -- (j1);
+				\draw[->, bamberg3, line width=0.5mm] (i1) -- (k1);
+				\draw[->, bamberg3, line width=0.5mm] (j1) -- (k1);
+			\end{tikzpicture}
+		\end{center}
+		\column{0.7\textwidth}
+		\[
+		h_{\text{twopath}} = \sum_{i \notin \{j; k\}} \sum_{j \notin \{i; k\}} \sum_{k \notin \{i; j\}} N_{ij} N_{jk} (1 - N_{ik}) (1 - N_{ki})
+		\]
+		\begin{center}
+			\begin{tikzpicture}[node distance=10mm and 6mm, 
+				knoten/.style={inner sep=0pt, minimum size=6mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+				\node[knoten] (j1) {$j$};
+				\node[knoten, below left=of j1] (i1) {$i$};
+				\node[knoten, below right=of j1] (k1) {$k$};
+				\draw[->, bamberg3, line width=0.5mm] (i1) -- (j1);
+				\draw[->, bamberg3, line width=0.5mm] (j1) -- (k1);
+			\end{tikzpicture}
+		\end{center}
+	\end{columns}
+	
+	\bigskip
+	
+	Are indirect paths also closed directly? E.\,g., due to efficiency, trust\ldots
+	
+	\bigskip
+	
+	Examples: ESP in information transmission. Two-paths in a recruitment network.
+	
+	\bigskip
+	
+	Name of the network statistic in \texttt{PNet}: \texttt{transitive triad} (T$_9$) and \texttt{2-path}.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Three-cycles}
+	\[
+	h_\text{three-cycle} = \sum_{i,j,k} N_{ij}N_{jk}N_{ki}
+	\]
+	\begin{center}
+		\begin{tikzpicture}[node distance=10mm and 6mm, 
+			knoten/.style={inner sep=0pt, minimum size=6mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+			\node[knoten] (j1) {$j$};
+			\node[knoten, below left=of j1] (i1) {$i$};
+			\node[knoten, below right=of j1] (k1) {$k$};
+			\draw[->, bamberg3, line width=0.5mm] (i1) -- (j1);
+			\draw[->, bamberg3, line width=0.5mm] (j1) -- (k1);
+			\draw[->, bamberg3, line width=0.5mm] (k1) -- (i1);
+		\end{tikzpicture}
+	\end{center}
+	
+	\bigskip
+	
+	Cyclical triads can often be found in friendship networks.
+	
+	\bigskip
+	
+	Name of the network statistic in \texttt{PNet}: \texttt{Cyclic Triad} (T$_{10}$).
+\end{frame}
+
+\begin{frame}
+	\frametitle{Triad census \citep{holland1971transitivity}}
+	\begin{center}
+		\includegraphics[height=0.85\textheight]{spec_triadcensus}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Four-cycles}
+	\[
+	h_\text{four-cycle} = \sum_{i,j,k,l} N_{ij}N_{jk}N_{kl}N_{li} (1-N_{ik}) (1-N_{jl}) (1-N_{ki}) (1-N_{lj})
+	\]
+	\begin{center}
+		\begin{tikzpicture}[node distance=10mm and 10mm, 
+			knoten/.style={inner sep=0pt, minimum size=6mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+			\node[knoten] (j1) {$j$};
+			\node[knoten, below=of j1] (i1) {$i$};
+			\node[knoten, right=of j1] (k1) {$k$};
+			\node[knoten, right=of i1] (l1) {$l$};
+			\draw[->, bamberg3, line width=0.5mm] (i1) -- (j1);
+			\draw[->, bamberg3, line width=0.5mm] (j1) -- (k1);
+			\draw[->, bamberg3, line width=0.5mm] (k1) -- (l1);
+			\draw[->, bamberg3, line width=0.5mm] (l1) -- (i1);
+		\end{tikzpicture}
+	\end{center}
+	
+	\bigskip
+	
+	Often found in networks with negative ties, for example international conflict, because it follows from structural balance.
+	
+	\bigskip
+	
+	Name of the network statistic in \texttt{PNet}: \texttt{4-Cycle}.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Geometrically weighted edge-wise shared partners (GWESP)}
+	\[
+	h_\text{GWESP}(N, \alpha) = \text{e}^{\alpha} \sum_{i = 1}^{n - 2} \left\{ 1 - (1 - \text{e}^{-\alpha})^i \right\} \text{ESP}_i(N)
+	\]
+	\begin{center}
+		where ESP$_i(N)$ is the number of edges with $i$ shared partners.
+	\end{center}
+	\begin{center}
+		\begin{tikzpicture}[node distance=10mm and 10mm, 
+			knoten/.style={inner sep=0pt, minimum size=4mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+			\node[knoten, minimum size=6mm] (i1) at (0,0) {};
+			\node[knoten, minimum size=6mm] (j1) at (0,2) {};
+			\node[knoten] (k1) at (2,1) {};
+			\node[knoten] (l1) at (4,1) {};
+			\node[knoten] (m1) at (6,1) {};
+			\node (n) at (7,1) {\textcolor{bamberg3}{\ldots}};
+			\draw[->, bamberg3, line width=0.5mm] (i1) -- (j1);
+			\draw[->, bamberg3!25, line width=0.5mm] (i1) -- (m1);
+			\draw[->, bamberg3!25, line width=0.5mm] (m1) -- (j1);
+			\draw[->, bamberg3!50, line width=0.5mm] (i1) -- (l1);
+			\draw[->, bamberg3!50, line width=0.5mm] (l1) -- (j1);
+			\draw[->, bamberg3, line width=0.5mm] (i1) -- (k1);
+			\draw[->, bamberg3, line width=0.5mm] (k1) -- (j1);
+		\end{tikzpicture}
+	\end{center}
+	
+	\medskip
+	
+	Similar theoretical idea as transitive triads/edge-wise shared partners.
+	
+	\medskip
+	
+	Each additional shared partner is weighted less strongly.
+	
+	\medskip
+	
+	Avoids model degeneracy in exponential random graph models.
+	
+	\medskip
+	
+	Name of the network statistic in \texttt{PNet}: \texttt{AT-T} (alternating triangle -- transitive).
+\end{frame}
+
+\begin{frame}
+	\frametitle{Geometrically weighted non-edgewise shared partners (GWNSP)}
+	\[
+	h_\text{GWNSP}(N, \alpha) = \text{e}^{\alpha} \sum_{i = 1}^{n - 2} \left\{ 1 - (1 - \text{e}^{-\alpha})^i \right\} \text{NSP}_i(N)
+	\]
+	\begin{center}
+		where NSP$_i(N)$ is the number of non-ties with $i$ shared partners.
+	\end{center}
+	\begin{center}
+		\begin{tikzpicture}[node distance=10mm and 10mm, 
+			knoten/.style={inner sep=0pt, minimum size=4mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+			\node[knoten, minimum size=6mm] (i1) at (0,0) {};
+			\node[knoten, minimum size=6mm] (j1) at (0,2) {};
+			\node[knoten] (k1) at (2,1) {};
+			\node[knoten] (l1) at (4,1) {};
+			\node[knoten] (m1) at (6,1) {};
+			\node (n) at (7,1) {\textcolor{bamberg3}{\ldots}};
+			\draw[->, bamberg3!25, line width=0.5mm] (i1) -- (m1);
+			\draw[->, bamberg3!25, line width=0.5mm] (m1) -- (j1);
+			\draw[->, bamberg3!50, line width=0.5mm] (i1) -- (l1);
+			\draw[->, bamberg3!50, line width=0.5mm] (l1) -- (j1);
+			\draw[->, bamberg3, line width=0.5mm] (i1) -- (k1);
+			\draw[->, bamberg3, line width=0.5mm] (k1) -- (j1);
+		\end{tikzpicture}
+	\end{center}
+	
+	\medskip
+	
+	Similar theoretical idea as two-paths.
+	
+	\medskip
+	
+	Each additional two-path is weighted less strongly.
+	
+	\medskip
+	
+	Avoids model degeneracy in exponential random graph models.
+	
+	\medskip
+	
+	Name of the network statistic in \texttt{PNet}: \texttt{A2P-T} (alternating 2-path -- transitive).
+\end{frame}
+
+\begin{frame}
+	\frametitle{GWDegree or alternating $k$-star}
+	\[
+	h_\text{GWDegree}(N, \alpha) = \text{e}^{\alpha} \sum_{i = 1}^{n - 1} \left\{ 1 - (1 - \text{e}^{-\alpha})^i \right\} \text{D}_i(N)
+	\]
+	\begin{center}
+		where D$_i(N)$ is the number of nodes with exactly $i$ ties.
+		
+		\begin{tikzpicture}[node distance=10mm and 10mm, 
+			knoten/.style={inner sep=0pt, minimum size=4mm, circle, draw=bamberg3, line width=0.5mm, fill=bamberg4}]
+			\node[knoten, minimum size=6mm] (i1) at (0,0) {};
+			\node[knoten] (j1) at (1.5,1.5) {};
+			\node[knoten] (k1) at (1.5,-1.5) {};
+			\node[knoten] (l1) at (-1.5,-1.5) {};
+			\node[knoten] (m1) at (-1.5,1.5) {};
+			\draw[bamberg3, line width=0.5mm] (i1) -- (j1);
+			\draw[bamberg3!50, line width=0.5mm] (i1) -- (k1);
+			\draw[bamberg3!25, line width=0.5mm] (i1) -- (l1);
+			\draw[bamberg3!13, line width=0.5mm] (i1) -- (m1);
+		\end{tikzpicture}
+	\end{center}
+	
+	\medskip
+	
+	Similar theoretical idea as stars (e.\,g., in-2-stars or out-2-stars) with weighting.
+	
+	\medskip
+	
+	Avoids model degeneracy in exponential random graph models.
+	
+	\medskip
+	
+	In \texttt{PNet}: \texttt{Alt-Star} (AS); \texttt{AinS} or \texttt{AoutS} for directed networks.
+\end{frame}
+
+\section{Theory building examples}
+
+\begin{frame}
+	\frametitle{ERGM theory building example 1}
+	\framesubtitle{How can we model visits among inhabitants of a residential care home?}
+	\begin{enumerate}
+		\item \alert<2-3>{Dyadic covariates.}
+		\only<3>{
+			\begin{itemize}
+				\item Age difference ($-$).
+				\item Same gender ($+$).
+				\item Proximity of apartments ($+$).
+				\item Similar size of visible families ($+$).
+				\item Similar profile of medical problems and disabilities ($+$).
+				\item Apartment of alter is between ego's apartment and the restaurant ($+$).
+			\end{itemize}
+		}
+		\item \alert<4-5>{Node covariates of ego.}
+		\only<5>{
+			\begin{itemize}
+				\item Physical and mental fitness ($+$).
+				\item Encouragement by family members ($+$).
+				\item Owns a TV set ($-$).
+			\end{itemize}
+		}
+		\item \alert<6-7>{Node covariates of alter.}
+		\only<7>{
+			\begin{itemize}
+				\item Spacious balcony ($+$).
+				\item Pension level ($+$).
+				\item Altruism ($+$).
+				\item Physical and mental fitness ($+$).
+				\item Apartment is close to the restaurant ($+$).
+			\end{itemize}
+		}
+		\item \alert<8-9>{Endogenous graph statistics.}
+		\only<9>{
+			\begin{itemize}
+				\item Reciprocity.
+				\item Edge-wise shared partners.
+				\item Cyclic triads.
+				\item $k$-in-stars.
+				\item $k$-out-stars.
+			\end{itemize}
+		}
+	\end{enumerate}
+\end{frame}
+
+\begin{frame}
+	\frametitle{ERGM theory-building example 2}
+	\framesubtitle{How can we explain militarised interstate disputes?}
+	\begin{enumerate}
+		\item \alert<2-3>{Dyadic covariates.}
+		\only<3>{
+			\begin{itemize}
+				\item Direct contiguity ($+$).
+				\item Colonial contiguity ($-$).
+				\item Distance ($-$).
+				\item Both countries are democracies ($-$).
+				\item Military capability ratio ($-$).
+				\item Trade dependence ($-$).
+				\item Bilateral alliances ($-$).
+				\item Joint membership in international organizations ($-$).
+				\item Shared allies ($-$).
+			\end{itemize}
+		}
+		\item \alert<4-5>{Node covariates of ego.}
+		\only<5>{
+			\begin{itemize}
+				\item Democracy? No\ldots
+				\item GDP per capita? No\ldots
+				\item Demography; share of young men? Maybe\ldots
+			\end{itemize}
+		}
+		\item \alert<6-7>{Node covariates of alter.}
+		\only<7>{
+			\begin{itemize}
+				\item Democracy ($-$).
+				\item GDP per capita ($-$).
+				\item Natural resources?
+				\item Has nuclear arms ($-$).
+			\end{itemize}
+		}
+		\item \alert<8-9>{Endogenous graph statistics.}
+		\only<9>{
+			\begin{itemize}
+				\item Reciprocity ($+$).
+				\item Structural balance: closed triangles ($-$).
+				\item Structural balance: 4-cycles ($+$).
+				\item Structural balance: edge-wise shared partners ($-$).
+				\item $k$-in-stars ($+$).
+				\item $k$-out-stars ($+$).
+			\end{itemize}
+		}
+	\end{enumerate}
+\end{frame}
+
+\section{A case study in \texttt{R} using \texttt{statnet}: information exchange in policy networks}
+
+\begin{frame}
+	\frametitle{Case study: Toxic chemicals regulation policy network}
+	\framesubtitle{\citep{leifeld2012information}}
+	\begin{columns}
+		\column{0.65\textwidth}
+		\begin{itemize}
+			\item How does information exchange in a policy domain work?
+			\item Theory: Actors have limited resources and try to establish low-cost contacts.
+			\item Transaction cost theory of politics.
+			\item They do so by\ldots
+			\begin{itemize}
+				\item using committees for cheap networking,
+				\item reciprocating existing ties, and
+				\item relying on third-party quality checks.
+			\end{itemize}
+			\item Scientific/technical versus political/strategic information exchange.
+		\end{itemize}
+		\column{0.35\textwidth}
+		\includegraphics[width=0.9\textwidth]{spec_chemicals}
+	\end{columns}
+\end{frame}
+
+\begin{frame}
+	\frametitle{ERGM results}
+	\begin{tabular}{l D{(}{(}{7} D{(}{(}{7}}
+		\toprule
+		& \multicolumn{1}{c}{Political inf.ex.}         & \multicolumn{1}{c}{Technical inf.ex.}\\
+		\cmidrule(lr){2-2}                              \cmidrule(lr){3-3}
+		Edges                                   & -3.63 \; (0.19)^{***}                         & -5.86 \; (0.31)^{***}\\
+		Preference similarity                   & 0.07 \; (0.07)                                & -0.05 \; (0.11)\\
+		Interest group homophily                & 1.18 \; (0.12)^{***}                          & 1.01 \; (0.32)^{**}\\
+		Governmental alter                      & 0.53 \; (0.06)^{***}                          & 0.41 \; (0.07)^{***}\\
+		Scientific ego                          & 0.05 \; (0.09)                                & 1.51 \; (0.10)^{***}\\
+		Common committees                       & 0.31 \; (0.01)^{***}                          & 0.16 \; (0.01)^{***}\\
+		Scientific communication                & 3.12 \; (0.38)^{***}                          &  \\
+		Political communication                 &                                               & 2.75 \; (0.06)^{***}\\
+		Influence attribution                   & 0.84 \; (0.07)^{***}                          & 0.47 \; (0.07)^{***}\\
+		GWESP: edge-wise shared p.              & 1.26 \; (0.03)^{***}                          & 0.43 \; (0.04)^{***}\\
+		GWDSP: dyadic shared p.                 & -0.15 \; (0.02)^{***}                         & -0.23 \; (0.02)^{***}\\
+		Reciprocity                             & 0.82 \; (0.06)^{***}                          & 1.86 \; (0.15)^{***}\\
+		\bottomrule
+	\end{tabular}
+\end{frame}
+
+\begin{frame}[fragile]{Data preparation for ERGM analysis in \texttt{R}}
+<<ajps-ergm-chemnet, size = "footnotesize", message = FALSE>>=
+library("sna")
+library("ergm")
+seed <- 12345
+data("chemnet", package = "btergm")
+
+sci <- scito * t(scifrom)  # create confirmed network relation
+prefsim <- dist(intpos, method = "euclidean")  # Euclidean distances over preferences
+prefsim <- max(prefsim) - prefsim  # convert distances to similarities
+prefsim <- as.matrix(prefsim) # from dist to matrix object
+committee <- committee %*% t(committee)  # co-memberships in committees
+diag(committee) <- 0 # the diagonal has no meaning
+types <- types[, 1]  # convert actor types to vector
+
+nw.pol <- network(pol) # political/stratgic information exchange
+set.vertex.attribute(nw.pol, "orgtype", types)
+set.vertex.attribute(nw.pol, "betweenness", betweenness(nw.pol)) # centrality
+nw.sci <- network(sci) # technical/scientific information exchange
+set.vertex.attribute(nw.sci, "orgtype", types)
+set.vertex.attribute(nw.sci, "betweenness", betweenness(nw.sci)) # centrality
+@
+\end{frame}
+
+\begin{frame}[fragile]{ERGM specification using \texttt{statnet}}
+\vspace{-5mm}
+\begin{columns}
+\column[t]{0.47\textwidth}
+<<ajps-ergm-spec-pol, size = "footnotesize", message = FALSE, warning = FALSE>>=
+pol_fit <- ergm(nw.pol ~
+    edges +
+    edgecov(prefsim) +
+    mutual +
+    nodemix("orgtype", base = -7) +
+    nodeifactor("orgtype", base = -1) +
+    nodeofactor("orgtype", base = -5) +
+    edgecov(committee) +
+    edgecov(nw.sci) +
+    edgecov(infrep) +
+    gwesp(0.1, fixed = TRUE) +
+    gwdsp(0.1, fixed = TRUE),
+    control = control.ergm(seed = seed)
+)
+@
+\column[t]{0.47\textwidth}
+<<ajps-ergm-spec-sci, size = "footnotesize", message = FALSE, warning = FALSE>>=
+sci_fit <- ergm(nw.sci ~
+    edges +
+    edgecov(prefsim) +
+    mutual +
+    nodemix("orgtype", base = -7) +
+    nodeifactor("orgtype", base = -1) +
+    nodeofactor("orgtype", base = -5) +
+    edgecov(committee) +
+    edgecov(nw.pol) +
+    edgecov(infrep) +
+    gwesp(0.1, fixed = TRUE) +
+    gwdsp(0.1, fixed = TRUE),
+    control = control.ergm(seed = seed)
+)
+@
+\end{columns}
+
+\bigskip
+
+For a full overview of model terms for the \texttt{ergm} function:
+<<ergm-model-terms-help, size = "footnotesize", eval = FALSE>>=
+?"ergm-terms"
+@
+Also look at the 2008 special issue on \texttt{statnet} in the \emph{Journal of Statistical Software}.
+\end{frame}
+
+\begin{frame}[fragile]{ERGM model output}
+<<ergm-ajps-output-pol, size = "tiny">>=
+summary(pol_fit)
+@
+\end{frame}
+
+\begin{frame}[fragile]{ERGM model output}
+<<ergm-ajps-output-texreg, size = "tiny", message = FALSE>>=
+library("texreg")
+screenreg(list(pol_fit, sci_fit), single.row = TRUE, custom.model.names = c("POL", "SCI"))
+@
+\end{frame}
+
+\section{Goodness of fit}
+
+\begin{frame}[fragile]
+	\frametitle{AIC and BIC}
+	{\fontsize{9}{9.5}\selectfont
+		\begin{verbatim}
+			Iterations:  4 out of 20 
+			
+			Monte Carlo MLE Results:
+			Estimate Std. Error MCMC % p-value    
+			edges                   -4.6878914  1.1879875      0 < 1e-04 ***
+			edgecov.prefsim          0.0955614  0.0609664      0 0.11738    
+			mutual                   1.4534082  0.2127839      0 < 1e-04 ***
+			mix.orgtype.ig.ig        0.8673973  0.2712187      0 0.00143 ** 
+			nodeifactor.orgtype.gov  0.9544805  0.1755724      0 < 1e-04 ***
+			nodeofactor.orgtype.sci -0.0080528  0.2102326      0 0.96945    
+			edgecov.committee       -0.0007542  0.0042259      0 0.85840    
+			edgecov.nw.sci           3.3054513  0.6382601      0 < 1e-04 ***
+			edgecov.infrep           1.0964583  0.1740745      0 < 1e-04 ***
+			gwesp.fixed.0.1          2.2501767  1.0197470      0 0.02761 *  
+			gwdsp.fixed.0.1         -0.1988304  0.0423788      0 < 1e-04 ***
+			---
+			Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+			
+			Null Deviance: 1206.1  on 870  degrees of freedom
+			Residual Deviance:  875.6  on 859  degrees of freedom
+			
+			AIC: 897.6    BIC: 950.1    (Smaller is better.)
+		\end{verbatim}
+		\begin{tikzpicture}[overlay]
+			\node[draw = orange, minimum width = 42mm, minimum height = 6 mm, line width=2pt] at (2.46,0.35) {};
+		\end{tikzpicture}
+	}
+\end{frame}
+
+\begin{frame}
+	\frametitle{AIC and BIC}
+	The most common goodness-of-fit measures for MLE are AIC and BIC.
+	
+	\bigskip
+	
+	Akaike Information Criterion (AIC):
+	\[
+	\text{AIC} = -2 \log \hat{\mathcal{L}} + 2k
+	\]
+	
+	Bayesian Information Criterion (BIC):
+	\[
+	\text{BIC} = -2 \log \hat{\mathcal{L}} + k \log n
+	\]
+	where $k$ is the number of parameters and $n$ is the number of observations.
+	
+	\bigskip
+	
+	Both measures penalise the inclusion of additional parameters.
+	
+	\bigskip
+	
+	Smaller values are ``better''. Only use for model comparison with the same data! Never interpret the absolute value of AIC or BIC!
+\end{frame}
+
+\begin{frame}[fragile]{Endogenous model fit using \texttt{btergm}}
+<<ajps-gof-btergm, size = "footnotesize", warning = FALSE, message = FALSE, dev = 'pdf', crop = TRUE, out.width = "100%", fig.width = 10, fig.height=4.4>>=
+library("btergm")
+g <- btergm::gof(pol_fit, statistics = c(dsp, esp, ideg, odeg, geodesic,
+                                         walktrap.modularity))
+plot(g)
+@
+\end{frame}
+
+\begin{frame}
+	\frametitle{Receiver-operating characteristics (ROC) and precision--recall (PR)}
+	\Wider{\includegraphics[width=0.48\textwidth]{gof_roc_crop} \quad \includegraphics[width=0.48\textwidth]{gof_pr_crop}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Area under the curve (AUC)}
+	\begin{center}
+		\includegraphics[height=0.9\textheight]{gof_auc_crop}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Tie prediction with ROC and PR using \texttt{btergm}}
+\vspace{-4mm}
+\begin{columns}
+\column[t]{0.5\textwidth}
+<<ajps-gof-roc, size = "footnotesize", warning = FALSE, message = FALSE, dev = 'pdf', crop = TRUE, out.width = "80%", fig.width = 5, fig.height=4.5>>=
+roc <- btergm::gof(pol_fit,
+    statistics = rocpr, pr = FALSE)
+roc
+plot(roc, rgraph = TRUE)
+@
+\column[t]{0.5\textwidth}
+<<ajps-gof-pr, size = "footnotesize", warning = FALSE, message = FALSE, dev = 'pdf', crop = TRUE, out.width = "80%", fig.width = 5, fig.height=4.5>>=
+pr <- btergm::gof(pol_fit,
+    statistics = rocpr, roc = FALSE)
+pr
+plot(pr, rgraph = TRUE)
+@
+\end{columns}
+\end{frame}
+
+\section{Case study: reputation formation in policy networks}
+
+\begin{frame}
+	\frametitle{Case study: Reputation formation in policy networks}
+	\framesubtitle{\citep{ingold2016structural}}
+	\begin{itemize}
+		\item Four policy networks.
+		\item Different time, country, stage of the policy cycle, level.
+		\item Climate, chemicals, flood prevention, telecommunications.
+		\item Previous research: influence reputation = proxy for influence.
+		\item Research question: how do political actors become influential in the first place?
+		\item ERGM framework: Why does $i$ rate $j$ as influential?
+		\item Theory: two components matter:
+		\begin{enumerate}
+			\item institutional power (formal authority, committee memberships)
+			\item structural power (cooperation, visibility, control of information)
+		\end{enumerate}
+		\item All these data have been collected through interviews.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{ERGM results}
+	\fontsize{8}{8.5}\selectfont
+	\begin{tabular}{l D{.}{.}{4.5}@{} D{.}{.}{4.5}@{} D{.}{.}{4.5}@{} D{.}{.}{4.5}@{} D{.}{.}{4.5}@{} }
+		\toprule
+		& \multicolumn{1}{c}{Climate 95-00} & \multicolumn{1}{c}{Climate 02-05} & \multicolumn{1}{c}{Telecom} & \multicolumn{1}{c}{PM Visp} & \multicolumn{1}{c}{Chemicals} \\
+		\midrule
+		Edges                          & -4.47^{***} & -3.81       & -6.74^{***} & -2.60      & -7.08^{***} \\
+		& (1.00)      & (5.24)      & (1.68)      & (1.63)     & (0.96)      \\
+		Cyclical ties                  & -0.45^{***} & -0.52^{***} & -0.22^{**}  & 0.00       & -0.18^{**}  \\
+		& (0.08)      & (0.09)      & (0.11)      & (0.29)     & (0.08)      \\
+		Transitive tries               & 0.91        & 1.33        & 1.18^{**}   & -1.37^{*}  & 1.28^{***}  \\
+		& (0.57)      & (4.77)      & (0.60)      & (0.79)     & (0.46)      \\
+		Reciprocity                    & 0.40        & -0.02       & 0.21        & 0.64^{**}  & 0.61^{*}    \\
+		& (0.29)      & (0.23)      & (0.53)      & (0.25)     & (0.32)      \\
+		Outdegree of ego               & 0.19^{***}  & 0.15^{***}  & 0.19^{***}  & 0.15^{***} & 0.23^{***}  \\
+		& (0.03)      & (0.03)      & (0.05)      & (0.02)     & (0.03)      \\
+		Alter = decision-maker         & 0.90^{***}  & 0.76^{***}  & 2.06^{***}  & 0.80^{***} & 1.75^{***}  \\
+		& (0.26)      & (0.22)      & (0.53)      & (0.25)     & (0.21)      \\
+		Committee memberships of alter & 0.57^{***}  & -0.44^{**}  & 0.21^{***}  & 0.32^{**}  & 0.04^{*}    \\
+		& (0.18)      & (0.17)      & (0.08)      & (0.14)     & (0.02)      \\
+		Collaboration betweenness of alter           & 0.08^{***}  & 0.13^{***}  & 0.10^{**}   & 0.09^{***} & 0.22^{***}  \\
+		& (0.02)      & (0.02)      & (0.04)      & (0.03)     & (0.03)      \\
+		Collaboration                  & 1.64^{***}  & 1.80^{***}  & 1.85^{***}  & 1.95^{***} & 0.81^{***}  \\
+		& (0.28)      & (0.23)      & (0.43)      & (0.27)     & (0.17)      \\
+		\midrule
+		AIC                            & 913.16      & 1081.98     & 642.10      & 859.55     & 1082.02     \\
+		BIC                            & 958.36      & 1127.19     & 688.59      & 902.27     & 1133.13     \\
+		Log Likelihood                 & -447.58     & -531.99     & -312.05     & -420.77    & -532.01     \\
+		\bottomrule
+		\multicolumn{6}{l}{\tiny{$^{***}p<0.01$, $^{**}p<0.05$, $^*p<0.1$}}
+	\end{tabular}
+\end{frame}
+
+\begin{frame}
+	\begin{center}
+		\includegraphics[scale=0.42]{gof_climate_tergm.pdf}
+	\end{center}
+\end{frame}
+
+\section{Model degeneracy}
+
+\begin{frame}
+	\frametitle{Model degeneracy}
+	\begin{itemize}
+		\item Many statistics are inherently correlated.
+		\item For example, closed triangles and edges.
+		\item Increasing one of them leads to a decrease of the parameter of the other one to get the same network.
+		\item In these situations, the MCMC sampler cannot decide in which of the two directions to move.
+		\item It will finally shift all the probability mass on one of the two statistics.
+		\item But this leads to a poor model.
+		\item Therefore the estimation procedure cannot continue because it never gets really close to a good solution.
+		\item This estimation problem affects \emph{many} models!
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Degeneracy: illustration}
+	\framesubtitle{\citep[65]{lusher2013exponential}}
+	\begin{center}
+		\includegraphics[width=1.0\textheight]{gof_degeneracy}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Degeneracy: illustration}
+	\framesubtitle{\citep[6]{handcock2008statnet}}
+	\begin{center}
+		\includegraphics[height=0.84\textheight]{gof_handcock2008}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Degeneracy as a blessing in disguise}
+	\begin{itemize}
+		\item Degeneracy usually reveals poor theory!
+		\item If the statistics are multicollinear, choose a better model!
+		\item Blessing in disguise because estimation failure guards us against estimating a theoretically ill-specified model.
+		\item Only (relatively) well-fitting models can actually be estimated.
+		\item But check MCMC diagnostics (e.\,g., correlation between statistics; autocorrelation).
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{ERGM specification and GOF assessment as an iterative process}
+	\begin{enumerate}
+		\item To model networks, we first think about theoretical mechanisms that could plausibly create the network structure.
+		\item Then we translate the mechanisms into measurable configurations (``network statistics'').
+		\item We also find additional configurations through exploratory network analysis.
+		\item We plug the configurations together, step by step, and estimate parameters/coefficients for them.
+		\item Iterative re-specification to optimise GOF and avoid degeneracy. Start from a simple model and increase complexity to find out which combinations of model terms cause degeneracy.
+	\end{enumerate}
+\end{frame}
+
+\begin{frame}
+	\frametitle{References}
+	\bibliographystyle{apalike}
+	\bibliography{references.bib}
+\end{frame}
+
+\end{document}

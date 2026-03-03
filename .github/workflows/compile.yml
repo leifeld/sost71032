@@ -1,0 +1,338 @@
+name: Compile materials
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Set up Pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libxml2-dev \
+            libglpk-dev \
+            libglpk40 \
+            libgdal-dev
+
+      - name: Restore R package cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: Linux-r-packages-v1
+          restore-keys: |
+            ${{ runner.os }}-r-
+
+      - name: Restore TinyTeX cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.TinyTeX
+          key: ${{ runner.os }}-tinytex-${{ hashFiles('**/*.tex', '**/*.sty', '**/*.cls', '**/*.Rnw') }}
+          restore-keys: |
+            ${{ runner.os }}-tinytex-
+
+      - name: Install TinyTeX (if needed)
+        run: |
+          Rscript - <<'EOF'
+          if (!requireNamespace("tinytex", quietly = TRUE)) {
+            install.packages("tinytex", repos = "https://cloud.r-project.org")
+          }
+          if (!tinytex::is_tinytex()) {
+            tinytex::install_tinytex(force = FALSE)
+          }
+          EOF
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        week: [1, 2, 3, 4, 5, 6]
+        kind: [slides, practical]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Set up Pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libxml2-dev \
+            libglpk-dev \
+            libglpk40 \
+            libgdal-dev \
+            libfontconfig1-dev \
+            libfreetype6-dev
+
+      - name: Restore R package cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: Linux-r-packages-v1
+          restore-keys: |
+            ${{ runner.os }}-r-
+
+      - name: Restore TinyTeX cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.TinyTeX
+          key: ${{ runner.os }}-tinytex-${{ hashFiles('**/*.tex', '**/*.sty', '**/*.cls', '**/*.Rnw') }}
+
+      - name: Install required LaTeX utilities
+        run: |
+          Rscript -e 'tinytex::tlmgr_install(c("pdfcrop", "cmbright", "knitr", "framed", "float", "color"))'
+
+      - name: Compile
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          Rscript - <<'EOF'
+          lib <- Sys.getenv("R_LIBS_USER")
+          dir.create(lib, showWarnings = FALSE, recursive = TRUE)
+          .libPaths(lib)
+
+          pkgs <- c(
+            "knitr","tinytex","rmarkdown","vegan","cluster",
+            "speedglm","fastglm","ggplot2","heatmaply",
+            "remotes","network","sna","ergm","latentnet",
+            "statnet","btergm","igraph","tidygraph","ggraph",
+            "texreg","hydra","igraphdata", "lsa"
+          )
+
+          missing <- pkgs[!pkgs %in% rownames(installed.packages(lib.loc = lib))]
+          if (length(missing)) {
+            install.packages(missing, repos = "https://cloud.r-project.org", lib = lib)
+          }
+
+          if (!"statnet.data" %in% rownames(installed.packages(lib.loc = lib))) {
+            remotes::install_github("statnet/statnet.data", lib = lib, upgrade = "never"
+            )
+          }
+
+          library(knitr)
+          library(tinytex)
+          library(rmarkdown)
+
+          w <- ${{ matrix.week }}
+          kind <- "${{ matrix.kind }}"
+
+          outdir <- "compiled_outputs"
+          dir.create(outdir, showWarnings = FALSE)
+
+          if (kind == "practical") {
+            rmd <- sprintf("sost71032_%d_practical/sost71032_%d_practical.Rmd", w, w)
+            if (!file.exists(rmd)) quit(status = 0)
+
+            render(
+              rmd,
+              output_format = "html_document",
+              quiet = TRUE,
+              envir = new.env(parent = globalenv())
+            )
+
+            html <- sub("\\.Rmd$", ".html", rmd)
+            file.copy(html, file.path(outdir, basename(html)), overwrite = TRUE)
+          }
+
+          if (kind == "slides") {
+            rnw <- sprintf("sost71032_%d_slides/sost71032_%d_slides.Rnw", w, w)
+            tex <- sprintf("sost71032_%d_slides/sost71032_%d_slides.tex", w, w)
+
+            if (!file.exists(rnw) && !file.exists(tex)) quit(status = 0)
+
+            tex_dir <- dirname(tex)
+            tex_file <- basename(tex)
+            rnw_file <- basename(rnw)
+
+            oldwd <- getwd()
+            setwd(tex_dir)
+
+            if (file.exists(rnw_file)) {
+              knitr::knit(rnw_file)
+            }
+
+            tinytex::latexmk(tex_file)
+
+            setwd(oldwd)
+
+            pdf <- sub("\\.tex$", ".pdf", tex_file)
+            file.copy(file.path(tex_dir, pdf), file.path(outdir, pdf), overwrite = TRUE)
+          }
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sost71032-week-${{ matrix.week }}-${{ matrix.kind }}
+          path: compiled_outputs/*
+
+      - name: Upload LaTeX log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: latex-logs-week-${{ matrix.week }}-${{ matrix.kind }}
+          path: |
+            sost71032_${{ matrix.week }}_slides/*.log
+
+  weekly-readings:
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore TinyTeX cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.TinyTeX
+          key: ${{ runner.os }}-tinytex-${{ hashFiles('**/*.tex', '**/*.sty', '**/*.cls', '**/*.Rnw') }}
+
+      - name: Compile weekly readings
+        run: |
+          export PATH="$HOME/.TinyTeX/bin/x86_64-linux:$PATH"
+          tlmgr install babel-english
+          mkdir -p compiled_outputs
+          cd sost71032_weekly_readings
+          latexmk -pdf sost71032_weekly_readings.tex
+          cp sost71032_weekly_readings.pdf ../compiled_outputs/
+
+      - name: Upload weekly readings artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sost71032-weekly-readings
+          path: compiled_outputs/*
+
+  assessment:
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Restore TinyTeX cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.TinyTeX
+          key: ${{ runner.os }}-tinytex-${{ hashFiles('**/*.tex', '**/*.sty', '**/*.cls', '**/*.Rnw') }}
+
+      - name: Install TinyTeX (if needed)
+        run: |
+          Rscript - <<'EOF'
+          if (!requireNamespace("tinytex", quietly = TRUE)) {
+            install.packages("tinytex", repos = "https://cloud.r-project.org")
+          }
+          if (!tinytex::is_tinytex()) {
+            tinytex::install_tinytex(force = FALSE)
+          }
+          EOF
+
+      - name: Install required LaTeX utilities
+        run: |
+          Rscript -e 'tinytex::tlmgr_install(c("pdfcrop", "knitr", "float", "color", "xcolor", "geometry"))'
+
+      - name: Compile
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          Rscript - <<'EOF'
+          lib <- Sys.getenv("R_LIBS_USER")
+          dir.create(lib, showWarnings = FALSE, recursive = TRUE)
+          .libPaths(lib)
+
+          pkgs <- c("knitr","tinytex","remotes","hydra","igraphdata")
+
+          missing <- pkgs[!pkgs %in% rownames(installed.packages(lib.loc = lib))]
+          if (length(missing)) {
+            install.packages(missing, repos = "https://cloud.r-project.org", lib = lib)
+          }
+
+          if (!"statnet.data" %in% rownames(installed.packages(lib.loc = lib))) {
+            remotes::install_github("statnet/statnet.data", lib = lib, upgrade = "never"
+            )
+          }
+
+          library(knitr)
+          library(tinytex)
+
+          outdir <- "compiled_outputs"
+          dir.create(outdir, showWarnings = FALSE)
+
+          rnw <- c("sost71032_assessment_formative_1/sost71032_assessment_formative_1.Rnw",
+                   "sost71032_assessment_formative_2/sost71032_assessment_formative_2.Rnw")
+          tex <- c("sost71032_assessment_formative_1/sost71032_assessment_formative_1.tex",
+                   "sost71032_assessment_formative_2/sost71032_assessment_formative_2.tex")
+
+          for (i in 1:length(rnw)) {
+            if (!file.exists(rnw[i]) && !file.exists(tex[i])) quit(status = 0)
+
+            tex_dir <- dirname(tex[i])
+            tex_file <- basename(tex[i])
+            rnw_file <- basename(rnw[i])
+
+            oldwd <- getwd()
+            setwd(tex_dir)
+
+            if (file.exists(rnw_file)) {
+              knitr::knit(rnw_file)
+            }
+
+            tinytex::latexmk(tex_file)
+
+            setwd(oldwd)
+
+            pdf <- sub("\\.tex$", ".pdf", tex_file)
+            file.copy(file.path(tex_dir, pdf), file.path(outdir, pdf), overwrite = TRUE)
+          }
+          EOF
+
+      - name: Upload assessment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sost71032-assessment
+          path: compiled_outputs/*
+
+  bundle:
+    needs: [build, weekly-readings, assessment]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all_outputs
+
+      - name: Upload bundled artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sost71032-compiled-materials
+          path: all_outputs

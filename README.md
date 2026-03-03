@@ -1,2 +1,2 @@
-# sost71032
-SOST71032 Statistical Models for Social Networks materials
+# SOST71032 Statistical Models for Social Networks
+This repository contains the materials for the course unit SOST71032 Statistical Models for Social Networks in the Department of Social Statistics at the University of Manchester.

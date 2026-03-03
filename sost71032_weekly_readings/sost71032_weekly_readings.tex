@@ -1,0 +1,138 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+
+\usepackage{natbib}
+\bibpunct[: ]{(}{)}{;}{a}{}{,}
+
+\usepackage{color}
+\definecolor{darkred}{rgb}{0.8,0.1,0.1}
+\definecolor{darkblue}{rgb}{0.1,0.1,0.8}
+\definecolor{darkgreen}{cmyk}{1.0,0,1.0,0.2}
+
+\usepackage[verbose,a4paper,tmargin=3cm,bmargin=3cm,lmargin=3cm,rmargin=3cm]{geometry}
+%\usepackage[onehalfspacing]{setspace}
+
+\usepackage[plainpages=false,pdfpagelabels,bookmarks]{hyperref}
+\hypersetup{
+	pdftitle={SOST71032 Weekly Readings},
+	pdfauthor={Philip Leifeld},
+	pdfkeywords={social network analysis, SNA, social statistics},
+	pdfsubject={},
+	breaklinks=true,
+	colorlinks=true,
+	urlcolor=darkblue,
+	linkcolor=darkblue,
+	citecolor=darkred,
+	bookmarksnumbered
+}
+
+\newcommand{\session}[3]{%
+	\noindent\small{\textsc{#1}}\\
+	\textbf{#2}\\
+	#3
+}%
+
+\title{%
+\small{SOST71032 Statistical Models for Social Networks, 2025/26}
+
+\LARGE{\textbf{Weekly Reading List}} \medskip
+
+\small{\textsc{University of Manchester, Department of Social Statistics}} \bigskip
+}
+\author{Philip Leifeld}
+
+\begin{document}
+
+\maketitle
+
+\section*{9 March 2026}
+Network Mechanisms, Dependence, and Configurations
+
+\begin{itemize}
+	\item \citet{cranmer2020inferential}: chapter 1
+	\item \citet{lusher2013exponential}: chapters 2 and 3
+	\item \citet{butts2008network}
+	\item \citet{butts2008social}
+	\item Optional: \citet{handcock2008statnet}
+	\item Optional: \citet{rawlings2023integrating}
+\end{itemize}
+
+
+\section*{16 March 2026}
+Exponential Random Graph Models: Specification
+
+\begin{itemize}
+	\item \citet{cranmer2020inferential}: chapters 3 and 4
+	\item \citet{lusher2013exponential}: chapters 4, 5, 6, 8
+	\item \citet{goodreau2008statnet}
+	\item \citet{morris2008specification}
+\end{itemize}
+
+
+
+\section*{23 March 2026}
+Exponential Random Graph Models: Estimation and Sampling
+
+\begin{itemize}
+	\item \citet{cranmer2020inferential}: chapter 5
+	\item \citet{lusher2013exponential}: chapters 7, 11, 12, 13
+	\item \citet{hunter2008ergm}
+	\item Optional: \citet{krivitsky2023ergm}
+\end{itemize}
+
+
+
+\section*{20 April 2026}
+Panel Network Models
+
+\begin{itemize}
+	\item \citet{cranmer2020inferential}: chapter 6
+	\item \citet{leifeld2018temporal}
+	\item \citet{snijders2010introduction}
+	\item Optional: \citet{leifeld2019theoretical}
+	\item Optional: \citet{borgatti2024analyzing}: chapter 15
+\end{itemize}
+
+
+\section*{27 April 2026}
+Relational Event Models
+
+\begin{itemize}
+	\item \citet{bianchi2024relational}
+	\item \citet{butts2008relational}
+	\item \citet{brandes2009networks}
+	\item \citet{leifeld2026endogenous}
+\end{itemize}
+
+\section*{8 May 2026}
+Permutation Approaches and Latent Space Models
+
+\begin{itemize}
+	\item \citet{cranmer2017navigating}
+	\item \citet{cranmer2020inferential}: chapters 2, 8, 9, 10
+\end{itemize}
+
+\section*{References on the slides}
+The slides in each week contain additional references.
+These point to specific contributions relevant in a given context.
+You may wish to look them up to contextualise your knowledge, but they count as optional reading.
+
+\section*{Other useful resources}
+The following additional resources may be consulted as background and additional reading where useful.
+SOST71032 focuses on statistical modelling of network data.
+Some of the following resources describe more foundational network analysis methods, such as descriptive and exploratory measures, which can often aid the analysis.
+In particular, I recommend consulting \citet{rawlings2023integrating} as a good resource on descriptive and exploratory analysis.
+
+\begin{itemize}
+	\item \citet{rawlings2023integrating}
+	\item \citet{borgatti2024analyzing}
+	\item \citet{kolaczyk2020statistical}
+	\item \citet{wasserman1994social}
+\end{itemize}
+The online reading list contains a few additional textbooks that may be of interest.
+
+\bibliographystyle{apalike}
+\bibliography{references}
+
+\end{document}

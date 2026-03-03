@@ -1,0 +1,962 @@
+\documentclass[aspectratio=169]{beamer}
+\usepackage{bm}
+\usepackage{cmbright}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{dcolumn}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{natbib}
+\bibpunct[: ]{(}{)}{;}{a}{}{,}
+\usepackage{tikz}
+\usetikzlibrary{positioning,mindmap,trees}
+\usepackage{tikz-3dplot}
+\definecolor{gray}{RGB}{155,155,155}
+\definecolor{bggray}{RGB}{220,220,220}
+
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{navigation symbols}{}
+
+\setbeamercolor{frametitle}{fg=black}
+\setbeamercolor{frametitle}{bg=black!10!white}
+\setbeamerfont{frametitle}{size=\Large}
+
+\setbeamercolor*{title}{bg=white,fg=black}
+\setbeamercolor{alerted text}{fg=orange}
+\setbeamertemplate{blocks}[rounded][shadow=true]
+%\addtobeamertemplate{block begin}{\pgfsetfillopacity{0.8}}{\pgfsetfillopacity{1}}
+\setbeamercolor*{block title}{fg=white,bg=black!10!black}
+\setbeamercolor*{block body}{fg=black!90!black,bg=black!10!white}
+\setbeamercolor{item}{fg=gray} % color of bullets
+\setbeamercolor{subitem}{fg=gray}
+\setbeamercolor{itemize/enumerate subbody}{fg=black}
+
+\setbeamercolor{section in toc}{fg=black}
+\setbeamercolor{subsection in toc}{fg=black}
+\setbeamertemplate{section in toc}[sections numbered]
+\setbeamertemplate{subsection in toc}[subsections numbered]
+
+\newcommand\Wider[2][4em]{%
+	\makebox[\linewidth][c]{%
+		\begin{minipage}{\dimexpr\textwidth+#1\relax}
+			\raggedright#2
+		\end{minipage}%
+	}%
+}
+
+\AtBeginSection[]
+{
+	\begin{frame}
+		\frametitle{Table of contents}
+		\tableofcontents[currentsection]
+	\end{frame}
+}
+
+% reduce spacing between code chunk and printed console output
+\setlength{\OuterFrameSep}{2pt}
+\makeatletter
+\preto{\@verbatim}{\topsep=-8pt \partopsep=-8pt }
+\makeatother
+
+\title{Permutation Approaches and Latent Space Models}
+\author{Philip Leifeld}
+\date{Statistical Models for Social Networks \\
+      SOST71032 $\mid$ Lecture 6 $\mid$ 8 May 2026}
+\titlegraphic{\includegraphics[width=3.5cm]{logo-manchester}}
+
+\begin{document}
+
+<<setup, include=FALSE, cache=FALSE>>=
+library("knitr")
+# set global chunk options
+opts_chunk$set(fig.path = 'figure/fig-', fig.align = 'center', fig.show = 'hold', cache = TRUE)
+#options(formatR.arrow = TRUE, width = 70)
+knit_hooks$set(crop = hook_pdfcrop)
+knitr::opts_chunk$set(dev = 'pdf', crop = TRUE)
+@
+
+\begin{frame}[plain]
+	\titlepage
+\end{frame}
+
+\section{Conditional uniform graph test (CUG)}
+
+\begin{frame}{Simulating Bernoulli random graphs}
+	Start with an empty network matrix $N$ of size $n \times n$. 
+	
+	\bigskip
+	
+	For every combination of nodes $i$ and $j$ in $N$ independently, decide if the cell $N_{ij}$ should be $0$ or $1$.
+	
+	\bigskip
+	
+	Use Bernoulli trials to decide if the cell is $0$ or $1$.
+	
+	\bigskip
+	
+	All experiments are governed by the same probability parameter $p$, for example $p = 0.2$ (for an expected density of around $0.2$).
+	
+	\bigskip
+	
+	Think of putting four blue and one red tokens into a bag and pulling an unseen token out of the bag. Drawing the red token has probability $0.2$. This is a Bernoulli trial.
+	
+	\bigskip
+	
+	Also known as the Erd\H{o}s-R{\'e}nyi model with parameters $n$ (number of vertices) and $p$.
+	
+	\bigskip
+	
+	If you repeat this to generate several random graphs, their densities form a normal distribution around $p$ as per the central limit theorem.
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Erd\H{o}s-R{\'e}nyi model with $n = 6, p = 0.3$}
+	\footnotesize
+	\begin{columns}
+		\column[t]{0.52\textwidth}
+<<er-model, R.options = list(width = 40)>>=
+set.seed(12345)
+n <- 6
+p <- 0.3
+dyads <- rbinom(n = n^2, size = 1, prob = p)
+dyads
+mat <- matrix(dyads, nrow = n)
+diag(mat) <- 0
+mat
+@
+		\column[t]{0.5\textwidth}
+<<er-plot, message = FALSE, out.width = "100%">>=
+library("network")
+library("sna")
+nw <- network(mat, directed = TRUE)
+plot(nw)
+@
+	\end{columns}
+\end{frame}
+
+\begin{frame}{Example: six Bernoulli random graphs with $n = 30$ and $p = 0.05$}
+	\vspace{-1mm}
+	\begin{footnotesize}
+<<rgraph, eval = FALSE>>=
+sapply(1:6, function(x) plot(network(rgraph(n = 30, tprob = 0.05))))
+@
+	\end{footnotesize}
+	\begin{tabular}{ccc}
+		\includegraphics[width=0.26\textwidth, trim=50 50 50 50, clip]{cug_bernoulli_1.pdf} & \includegraphics[width=0.26\textwidth, trim=50 50 50 50, clip]{cug_bernoulli_2.pdf} & \includegraphics[width=0.26\textwidth, trim=50 50 50 50, clip]{cug_bernoulli_3.pdf} \\
+		\includegraphics[width=0.26\textwidth, trim=50 50 50 50, clip]{cug_bernoulli_4.pdf} & \includegraphics[width=0.26\textwidth, trim=50 50 50 50, clip]{cug_bernoulli_5.pdf} & \includegraphics[width=0.26\textwidth, trim=50 50 50 50, clip]{cug_bernoulli_6.pdf}
+	\end{tabular}
+\end{frame}
+
+\begin{frame}{Erd\H{o}s-R{\'e}nyi random graphs with a fixed number of edges}
+	Alternatively, a random graph can be created by requiring two parameters $n$ (number of nodes) and $e$ (number of edges).
+	
+	\bigskip
+	
+	We randomly place these $e$ edges in the network matrix and fill the other cells with zeros.
+	
+	\bigskip
+	
+	Formally: Create a $n \times n$ zero matrix. Create a set of all off-diagonal row and column index tuples (e.\,g., $[2, 6]$, $[7, 1]$) and sample $e$ tuples from them without replacement. For each sampled tuple, overwrite the corresponding matrix cell with $1$.
+	
+	\bigskip
+	
+	This is a variant of the aforementioned Erd\H{o}s-R{\'e}nyi model.
+	
+	\bigskip
+	
+	Unlike the $n, p$ model, this model has no variance around the mean network density.
+	
+	\bigskip
+	
+	This is the model we typically use in conditional uniform graph tests.
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Erd\H{o}s-R{\'e}nyi model with $n = 6, e = 7$}
+	\footnotesize
+	\begin{columns}
+		\column[t]{0.5\textwidth}
+<<er-model2, message = FALSE, R.options = list(width = 40)>>=
+set.seed(12345)
+n <- 6
+e <- 7
+mat <- matrix(0, nrow = n, ncol = n)
+dyads <- expand.grid(send = 1:n, rec = 1:n)
+dyads <- dyads[dyads$send != dyads$rec, ]
+tail(dyads)
+@
+		\column[t]{0.5\textwidth}
+<<er-plot2, out.width = "100%">>=
+s <- sample(1:nrow(dyads), e)
+s
+for (i in s) {
+  mat[dyads$send[i], dyads$rec[i]] <- 1
+}
+plot(network(mat, directed = TRUE))
+@
+	\end{columns}
+\end{frame}
+
+\begin{frame}{Conditional uniform graph (CUG) test}
+	How can we know if some configuration is ``unexpected'' or ``significant''?
+	
+	\bigskip
+	
+	We can use some baseline expectation of how the configuration would be distributed -- a \alert{null distribution}.
+	
+	\bigskip
+	
+	Erd\H{o}s-R{\'e}nyi random graphs with the same density as the observed network could serve as a reasonable null distribution.
+	
+	\bigskip
+	
+	CUG test:
+	\begin{enumerate}
+		\item Create many random graphs with $n := \text{nrow}(N)$ and  $e = \sum_{i \neq j} N_{ij}$.
+		\item Calculate the network statistic in these random graphs and look at the distribution.
+		\item Calculate the statistic in the observed network and locate it in the distribution.
+		\item If it is in the tails of the distribution, it is significantly different from the null distribution.
+	\end{enumerate}
+\end{frame}
+
+\begin{frame}[fragile]{Example: Information exchange in a policy network}{Based on data by \citet{leifeld2012information}.}
+	\vspace{-5mm}
+	\begin{columns}
+		\column[t]{0.5\textwidth}
+<<ajps-cug-plot, message = FALSE, size = "footnotesize", dev = 'pdf', crop = TRUE, out.width = "65%">>=
+library("btergm")
+data("chemnet")
+plot(network(pol),
+     edge.col = 1 * (pol == 1 &
+                     t(pol) == 1) + 1,
+     vertex.col = "green")
+@
+		\column[t]{0.5\textwidth}
+<<ajps-cug-observed, message = FALSE, size = "footnotesize">>=
+n <- nrow(pol)
+e <- sum(pol)
+non_e <- n * n - n - e
+observed <- sum(pol == 1 & t(pol) == 1) / 2
+observed
+@
+		
+		\bigskip
+		
+		Red arrows are reciprocal, black arrows are unidirectional.
+		
+		\medskip
+		
+		There are \Sexpr{observed} reciprocal dyads.
+		
+		\medskip
+		
+		\alert{Research question}: Is this more reciprocity than chance would predict in a graph of the same size and density?
+	\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Example: Information exchange in a policy network -- reciprocity}{Based on data by \citet{leifeld2012information}.}
+	\vspace{-5mm}
+	\begin{columns}
+		\column[t]{0.5\textwidth}
+<<ajps-cug-loop, size = "footnotesize">>=
+offdiag_indices <- which(row(pol) !=
+                           col(pol))
+dyads <- c(rep(1, e), rep(0, non_e))
+results <- sapply(1:10000, function(x) {
+  mat <- matrix(0, nrow(pol), ncol(pol))
+  mat[sample(offdiag_indices)] <- dyads
+  sum(mat == 1 & t(mat) == 1) / 2
+})
+@
+		
+		\medskip
+		
+		Reciprocity in 10,000 random graphs (same number of edges \Sexpr{e}), with 0.025 and 0.975 per cent of the distribution in blue and observed number of reciprocal ties in red.
+		\column[t]{0.55\textwidth}
+<<ajps-cug2, size = "footnotesize", dev = 'pdf', crop = TRUE, out.width = "100%", fig.width = 7, fig.height = 4>>=
+xlim <- c(min(c(results, observed)) - 10,
+          max(c(results, observed)) + 20)
+hist(results, xlim = xlim, xlab = "")
+abline(v = quantile(results, c(0.025, 0.975)),
+       col = "blue", lwd = 3, lty = 1)
+abline(v = observed, col = "red", lwd = 3)
+@
+	\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Example: Information exchange in a policy network -- two-paths}{Based on data by \citet{leifeld2012information}.}
+	\vspace{-5mm}
+	\begin{columns}
+		\column[t]{0.5\textwidth}
+<<ajps-cug-loop-twopath, size = "footnotesize">>=
+f <- function(x) summary(x ~ twopath)
+obs_twopath <- f(pol)
+results <- cug.test(dat = pol,
+                    FUN = f,
+                    mode = "digraph",
+                    cmode = "edges")
+@
+		
+		\medskip
+		
+		Two-paths in 1,000 random graphs (same density 0.39), with 0.025 and 0.975 per cent of the distribution in blue and observed number of two-paths in red.
+
+\medskip
+
+<<ajps-cug-ecdf-twopath, size = "footnotesize">>=
+# p-value:
+1 - ecdf(results$rep.stat)(obs_twopath)
+@
+		\column[t]{0.55\textwidth}
+<<ajps-cug2-twopath, size = "footnotesize", dev = 'pdf', crop = TRUE, out.width = "100%", fig.width = 5, fig.height=4>>=
+plot(results)
+@
+	\end{columns}
+\end{frame}
+
+\begin{frame}{Summary: CUG tests}
+	\begin{block}{Conditional uniform graph tests}
+		\begin{itemize}
+			\item Permute location of edges in the network (randomness conditional on density).
+			\item Count some configuration like reciprocity or triads and create null distribution.
+			\item Locate observed count in this distribution. If in tails, count is significant.
+			\item Null distribution accounts for some positive count even if the effect is absent.
+		\end{itemize}
+	\end{block}
+\end{frame}
+
+\begin{frame}{Conditional uniform graph test: Conclusion}
+	\begin{itemize}
+		\item Univariate significance test for network statistics/configurations.
+		\item Useful for building theory on network formation, which can then be used in an ERGM.
+		\item Use it for whole-network statistics like reciprocity, number of four-cycles, number of open two-paths, number of isolates, modularity, clustering coefficient etc.
+		\item Not applicable when the result is a variable with multiple values, like node centralities or edge-wise shared partner distribution.
+		\item ``Conditional'' because we condition on some feature of the observed network to form a null distribution. Here: density.
+		\item We could also condition on the number of unidirectional and reciprocal edges, degree sequence, etc.
+		\item We could also test against $(n, p)$ Bernoulli graphs to factor in generative uncertainty over density.
+	\end{itemize}
+\end{frame}
+
+
+\section{Quadratic assignment procedure (QAP)}
+
+\begin{frame}{Are marriage and business ties significantly associated?}
+	\begin{columns}
+		\column{0.38\textwidth}
+		\includegraphics[height=0.91\textheight]{qap_medici}
+		\column{0.62\textwidth}
+		Florentine families in the 15\textsuperscript{th} century.
+		
+		\bigskip
+		
+		Solid lines = marriage. \\
+		Dashed lines = business. \\
+		Node size = wealth.
+		
+		\bigskip
+		
+		\citet{padgett1993robust}: The Rise of the Medici.
+		
+		\bigskip
+		
+		Multigraph diagram: \citet{ostoic2017compositional}.
+		
+		\bigskip
+		
+		\alert{$\Rightarrow$ Are business relations between Florentine families a function of marriage ties? Do they correlate?}
+	\end{columns}
+\end{frame}
+
+\begin{frame}{Permuting a network matrix}
+	\begin{tabular}{ccc}
+		\vspace{0.1cm}
+		Graph & Original matrix & A permuted matrix \\
+		\includegraphics[width=0.37\textwidth]{qap_matrix_graph} & \includegraphics[width=0.28\textwidth]{qap_matrix_original} & \includegraphics[width=0.28\textwidth]{qap_matrix_permuted}
+	\end{tabular}
+	\begin{center}\tiny{Source: \url{https://graphicmaths.com/computer-science/graph-theory/permutation-matrix/}} (accessed 7 January 2026).\end{center}
+	
+	\bigskip
+	
+	A permutation $N^\prime$ of a matrix $N$ has a randomly reshuffled order of rows and columns.
+	
+	\bigskip
+	
+	Rows and columns are re-ordered in the same way.
+	
+	\bigskip
+	
+	It contains the same dependence information and produces the same graph.
+\end{frame}
+
+\begin{frame}{Association between network relations}
+	We have two network relations and want to know if they are significantly associated.
+	
+	\bigskip
+	
+	\alert{Correlation coefficient} (for two weighted network relations $M$ and $N$): \\
+	\[
+	r_{MN} = \frac{\sum_{i,j} (N_{ij} - \bar{N})(M_{ij} - \bar{M})}{\sqrt{\sum_{i,j} (N_{ij} - \bar{N})^2} \sqrt{\sum_{i,j} (M_{ij} - \bar{M})^2}},
+	\]
+	
+	\bigskip
+	
+	where $\bar{N}$ is the mean value in matrix $N$ (the density). Values close to $1.0$ indicate a positive association, close to $-1.0$ a negative association, and $0.0$ no association.
+	
+	\bigskip
+	
+	\alert{Jaccard coefficient} (for two binary network relations $M$ and $N$): \\
+	\[
+	J_{MN} = \frac{\sum_{i, j} N_{ij} M_{ij}}{\sum_{i,j} 1 - (1 - N_{ij}) (1 - M_{ij})} = \frac{\sum_{i, j} N_{ij} M_{ij}}{\sum_{i,j} (N_{ij} + M_{ij} - N_{ij} M_{ij})}
+	\]
+	
+	\bigskip
+	
+	Values close to $1$ indicate strong association. Close to $0:$ no association.
+\end{frame}
+
+\begin{frame}{Jaccard coefficient: example}
+	
+	\begin{tabular}{c|ccccc}
+		& A & B & C & D & E \\
+		\hline
+		A & 0 & \cellcolor{green} 1 & 0 & \cellcolor{cyan} 1 & \cellcolor{green} 1 \\
+		B & 0 & 0 & 0 & \cellcolor{green} 1 & \cellcolor{cyan} 1 \\
+		C & 0 & \cellcolor{green} 1 & 0 & 0 & \cellcolor{green} 1 \\
+		D & 0 & 0 & \cellcolor{green} 1 & 0 & 0 \\
+		E & 0 & \cellcolor{green} 1 & 0 & \cellcolor{cyan} 1 & 0 \\
+		\hline
+	\end{tabular}
+	\qquad
+	\begin{tabular}{c|ccccc}
+		& A & B & C & D & E \\
+		\hline
+		A & 0 & \cellcolor{green} 1 & 0 & 0 & \cellcolor{green} 1 \\
+		B & \cellcolor{red} 1 & 0 & 0 & \cellcolor{green} 1 & 0 \\
+		C & 0 & \cellcolor{green} 1 & 0 & 0 & \cellcolor{green} 1 \\
+		D & \cellcolor{red} 1 & 0 & \cellcolor{green} 1 & 0 & 0 \\
+		E & 0 & \cellcolor{green} 1 & 0 & 0 & 0 \\
+		\hline
+	\end{tabular}
+	
+	\bigskip
+	
+	We divide the number of cells where both have 1 by the number of cells where at least one of them is positive.
+	
+	\[
+	J = \frac{\textcolor{green}{7}}{\textcolor{green}{7} + \textcolor{cyan}{3} + \textcolor{red}{2}} = \frac{7}{12} = 0.58\overline{3}
+	\]
+	
+	The matrices are rather similar. Dissimilarity: $1 - J_{MN} = 1 - 0.58\overline{3} = 0.417$.
+\end{frame}
+
+\begin{frame}[fragile]{Distance/dissimilarity methods in \texttt{R}}
+\vspace{-3mm}
+\begin{columns}
+\column[t]{0.5\textwidth}
+<<jaccard-example, size = "footnotesize", message = FALSE>>=
+N <- matrix(c(0, 1, 0, 1, 1,
+              0, 0, 0, 1, 1,
+              0, 1, 0, 0, 1,
+              0, 0, 1, 0, 0,
+              0, 1, 0, 1, 0),
+            byrow = TRUE, nrow = 5)
+
+M <- matrix(c(0, 1, 0, 0, 1,
+              1, 0, 0, 1, 0,
+              0, 1, 0, 0, 1,
+              1, 0, 1, 0, 0,
+              0, 1, 0, 0, 0),
+            byrow = TRUE, nrow = 5)
+
+mat <- matrix(c(N, M),
+              nrow = 2,
+              byrow = TRUE)
+@
+\column[t]{0.5\textwidth}
+<<jaccard-example-vegdist, size = "footnotesize", message = FALSE>>=
+# Jaccard distance (for binary data)
+library("vegan")
+vegdist(mat, method = "jaccard")[1]
+
+# Euclidean distance (for weighted data)
+dist(mat, method = "euclidean")[1]
+
+# correlation (for weighted data)
+cor(mat[1, ], mat[2, ])
+
+# cosine similarity (for weighted data)
+lsa::cosine(mat[1, ], mat[2, ])[1, 1]
+@
+\end{columns}
+\end{frame}
+
+\begin{frame}{Significance for associations between network relations}
+  How can we assess if this association is significant?
+  
+  \bigskip
+  
+  I.\,e., more extreme than chance would predict?
+  
+  \bigskip
+  
+  We need to factor the network dependence into the null distribution of having no association.
+  
+  \bigskip
+  
+  The quadratic assignment procedure (QAP) creates an empirical confidence interval around a measure of association using permutations.
+  
+  \bigskip
+  
+  It works for bivariate associations (correlation or Jaccard coefficient) or multiple regression (MRQAP), where one network relation is explained by a linear combination of other network relations.
+  
+  \bigskip
+  
+  MRQAP example: Academic co-authorship is explained by similar topical interests, geographic proximity, complementary skills, and similar publication strategies.
+  
+  \bigskip
+  
+  Test for homophily: Does the co-presence of attributes correlate with being tied?
+\end{frame}
+
+\begin{frame}
+	\frametitle{The quadratic assignment procedure (QAP)}
+	\begin{enumerate}
+		\item Compute association (similarity or dissimilarity) or regression (linear model or GLM) on the network matrix $N$ and one or more predictor matrices.
+		\item Permute the rows and columns of $N$ simultaneously.
+		\item Re-compute the model and save the coefficients.
+		\item Repeat steps 2--3 \emph{many} times.
+		\item Look at the distribution of coefficients for each model term. This is the new baseline (without dependencies) against which to compare the original coefficient. 
+		\item If the original coefficient is located in the tails of the distribution, it is significant.
+	\end{enumerate}
+\end{frame}
+
+\begin{frame}[fragile]{QAP test for the Florentine families in \texttt{R}}
+<<qap, size = "footnotesize", dev = 'pdf', crop = TRUE, out.width = "60%", fig.width = 6, fig.height=3.2>>=
+jac <- 1 - vegdist(matrix(c(mar, bus), nrow = 2, byrow = TRUE), method = "jaccard")
+n <- nrow(mar)
+qap <- sapply(1:10000, function(x){
+  s <- sample(n)
+  mar_perm <- mar[s, s]
+  1 - vegdist(matrix(c(mar_perm, bus), nrow = 2, byrow = TRUE), method = "jaccard")
+})
+hist(qap, main = "", xlab = "", xlim = c(0, jac))
+abline(v = quantile(qap, c(0.025, 0.975)), col = "blue", lwd = 3, lty = 1)
+abline(v = jac, col = "red", lwd = 3)
+1 - ecdf(qap)(jac) # QAP p-value
+@
+\end{frame}
+
+\begin{frame}
+	\frametitle{The quadratic assignment procedure (QAP)}
+	\begin{itemize}
+		\item \citet{mantel1967detection} and \citet{hubert1976quadratic}: QAP for bivariate associations.
+		\item \citet{krackardt1987qap, krackhardt1988predicting}: Extension to multiple regression.
+		\item Less bias: Freedman-Lane or Dekker's Double Semi-Partialing Plus.
+		\item Permutation of residuals of independent variables, rather than $N$, then simulate new $N$s.
+		\item Details: \citet{dekker2007sensitivity}.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{MRQAP: Explaining coordination in an environmental policy network}{\citep{cranmer2017navigating}}
+	\begin{columns}
+		\column{0.68\textwidth}
+		\begin{tabular}{lrr}
+			& Estimate      & Pr($>=|b|$) \\
+			\midrule
+			(intercept)                 & $-4.23864073$ & 0.000 \\
+			\rowcolor{pink} Business vs NGO             & $-0.87159067$ & 0.085 \\
+			\rowcolor{green} Opposition/alliance         & 1.13763710    & 0.000 \\
+			\rowcolor{cyan} Preference dissimilarity    & $-0.60337956$ & 0.170 \\
+			\rowcolor{cyan} Joint forum participation   & 0.75099604    & 0.005 \\
+			\rowcolor{green} Influence attribution       & 1.28976010    & 0.000 \\
+			\rowcolor{orange} Alter's influence indegree  & 0.11303086    & 0.000 \\
+			\rowcolor{pink} Influence absolute diff.    & $-0.05713272$ & 0.005 \\
+			\rowcolor{orange} Alter = Government actor    & 0.68087734    & 0.055 \\
+			\rowcolor{orange} Ego = Environmental NGO     & 0.98578641    & 0.145 \\
+			\rowcolor{cyan} Same actor type             & 1.12455422    & 0.000 \\
+			\rowcolor{lightgray} Reciprocity                 & 1.00367969    & 0.005
+		\end{tabular}
+		\column{0.32\textwidth}
+		Logit model with MRQAP.
+		
+		\medskip
+		
+		Covariates based on:
+		\begin{itemize}
+			\item \textcolor{green}{other network relations}
+			\item \textcolor{pink}{attribute similarities/difference/mixing}
+			\item \textcolor{cyan}{projections from bipartite graphs}
+			\item \textcolor{orange}{node attributes}
+			\item \textcolor{lightgray}{endogenous configurations}
+		\end{itemize}
+	\end{columns}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Excursion: The logit link function}
+	Linear model: $Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \ldots + \epsilon$.
+	
+	\bigskip
+	
+	Problem with binary $Y$ (such as networks): what comes out on the right is not binary.
+	
+	\bigskip
+	
+	We can use a logit transformation for this.
+	
+	\bigskip
+	
+	Basic idea: Any probability can be expressed as an odds-ratio.
+	
+	\bigskip
+	
+	For example, let $p = 0.16$ denote the probability of civil war. I.\,e., 16 out of 100 countries have a civil war. The odds of civil war are 16:84 or $\frac{16}{84} = 0.19$. The odds of peace are 84:16 or $\frac{84}{16} = 5.25$. These are called odds-ratios.
+	
+	\bigskip
+	
+	Values between 0 and 1 indicate $\leq 0.5$ probability. Values above 1 indicate probabilities above 0.5, and there is no upper bound. To avoid this skewness of the odds-ratios, their logarithm can be computed in order to scale them symmetrically around 0.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Excursion: The logit link function}
+	This is the well-known logit transformation:
+	\[
+	\text{logit}(p) = \log\left(\frac{p}{1 - p}\right),
+	\]
+	which can be mapped back onto probability scale $[0; 1]$ with the inverse logit transformation:
+	\[
+	\text{logit}^{-1}(x) = \frac{e^{x}}{1 + e^{x}} = \frac{1}{1 + e^{-x}}
+	\]
+	
+	\bigskip
+	
+	We can use this transformation to map a linear (= additive) model onto the probability scale.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Excursion: The logit model}
+	Binary outcomes can be modelled as Bernoulli trials, which are defined by a single parameter $\theta$ for the probability of success.
+	\[
+	P(Y_i = y_i) = \theta_i^{y_i} (1 - \theta_i)^{1 - y_i}
+	\]
+	with each $y_i \in \{0; 1\}$. The Bernoulli trials are like a binomial experiment, except there are different probabilities in each trial.
+	
+	\bigskip
+	
+	Now we can plug the linear part into this model through the link function. This is where the different probabilities come from:
+	\[
+	\theta_i = \text{logit}^{-1} \left(\mathbf{X}^\top_i \boldsymbol{\beta}\right) = \frac{1}{1 + e^{-\mathbf{X}^\top_i \boldsymbol{\beta}}}
+	\]
+	This is called a logistic (or logit) model -- a non-linear model for binary data.
+\end{frame}
+
+\begin{frame}{Summary: QAP tests}
+	\begin{block}{(MR)QAP}
+		\begin{itemize}
+			\item Create many permutations of the network. Leave other network(s) as they are.
+			\item Compute association or regression coefficients with permuted matrices.
+			\item This destroys the connection between the network matrix and other matrices but keeps the dependencies in the network intact.
+			\item Use the coefficients with permuted networks as null distribution, and locate non-permuted coefficient in distribution to establish significance.
+		\end{itemize}
+	\end{block}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Advantages and disadvantages of MRQAP relative to ERGM}
+	\begin{block}{Advantages}
+		\begin{itemize}
+			\item (Allegedly) yields unbiased uncertainty measures ($p$ values).
+			\item Easy to specify: dependencies need not be made explicit.
+			\item Estimation is computationally feasible.
+			\item Quick and easy if one is only interested in covariates.
+			\item Arbitrary outcome distributions (linear model, logit etc).
+		\end{itemize}
+	\end{block}
+	\begin{block}{Disadvantages}
+		\begin{itemize}
+			\item Very limited opportunity to build or test relational hypotheses.
+			\item Still the same bias in the estimates as in GLM/OLS.
+			\item No standard errors available.
+			\item No temporal version available.
+			\item Biased under some conditions (e.\,g., skewed distribution).
+		\end{itemize}
+	\end{block}
+\end{frame}
+
+\begin{frame}{Limitations of MRQAP relative to ERGM}
+We \emph{could} respecify MRQAP as an exponential family model over permutation orbits:
+\begin{equation*}\label{eq:pmf_mrqap}
+\mathbb{P}(\mathbf{N} \mid \mathbf{X}, \boldsymbol{\theta}) 
+= \frac{ \exp\left( \sum_{i \ne j} \ell(N_{ij}; \eta_{ij}) \right) }{ \sum_{\pi \in S_n} \exp\left( \sum_{i \ne j} \ell\left((\mathbf{P}_\pi \mathbf{N} \mathbf{P}_\pi^\top)_{ij};\; \eta_{ij} \right) \right) }.
+\end{equation*}
+with log likelihood
+\begin{equation*}
+\ell(N_{ij}; \eta_{ij}) = N_{ij} \cdot \eta_{ij} - \log(1 + e^{\eta_{ij}})
+\end{equation*}
+for the logit specification.
+
+\medskip
+
+Potentially impossible to estimate, but useful mathematical analogy to the ERGM.
+
+\medskip
+
+We can then see two limitations more clearly:
+\begin{enumerate}
+ \item The permutations in the normalising constant form a small subset of the normalising constant in the ERGM, leading to a much reduced probability space.
+ \item Any dependencies must be formulated as part of $\mathbf{X}$, which resembles maximum pseudolikelihood estimation (MPLE) for ERGMs. We know this is heavily biased.
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Smaller sample space than in the ERGM}
+ \includegraphics[width = 0.86\textwidth]{qap_sample_size}
+\end{frame}
+
+\section{Latent Space Models \& Additive and Multiplicative Models for Networks}
+
+\begin{frame}
+ \frametitle{The latent space network model}
+ \begin{itemize}
+  \item Basic idea: relegate all dependencies to a latent social space.
+  \item Positions of nodes in this space are optimised along with the rest of the regression equation.
+  \item The distances between positions should reflect social distances.
+  \item That is, $\forall {i,j,k}: N_{ij}N_{jk}(1 - N_{ik}) = 1 \Rightarrow d_{ij} \leq d_{ik} \wedge d_{jk} \leq d_{ik}$.
+  \item Likelihood maximisation: Controlling for distances that reflect dependence, what are the coefficients for the other covariates?
+  \item Software implementation in \texttt{latentnet} (part of \texttt{statnet}) and the \texttt{amen} package.
+ \end{itemize}
+\end{frame}
+
+\begin{frame}
+ \frametitle{Probability mass function with Euclidean space}
+ Probability density function:
+ \[
+  P(N | Z, X, \theta) = \prod_{i \neq j} P(N_{ij} | z_{i}, z_{j}, \mathbf{x}_{ij}, \theta)
+ \]
+ where $Z$ describes positions in a latent social space.\\
+ \bigskip
+ Formulation as logistic regression with Euclidean distances between latent positions:
+ \[
+  \eta_{ij} = \log \text{odds} (N_{ij} = 1 \mid \mathbf{z}_i, \mathbf{z}_j, \mathbf{x}_{i, j}, \alpha, \beta) = \alpha + \beta' \mathbf{x}_{i,j} - \left\vert\mathbf{z}_i - \mathbf{z}_j\right\vert
+ \]
+ where distances must satisfy the triangle inequality:
+ \[
+  d_{ij} \leq d_{ik} + d_{kj} \quad \forall \{i,j,k\}
+ \]
+\end{frame}
+
+\begin{frame}
+ \frametitle{A latent space projection \citep{cranmer2017navigating}}
+ \begin{center}
+  \includegraphics[width=0.57\textwidth]{lsm_latent_positions}
+ \end{center}
+\end{frame}
+
+\begin{frame}
+ \frametitle{Projection model}
+ \begin{itemize}
+  \item The Euclidean distance model assumed symmetry: $p(i \rightarrow j) = p(j \rightarrow i)$.
+  \item The \emph{projection model} permits asymmetric relations. \citet[1092]{hoff2002latent}:
+  
+  \smallskip
+  
+  \begin{quote}
+   \emph{``Perhaps actor $i$ sends a large number of ties, whereas $j$ sends ties to a small subset of the actors receiving ties from $i$. In this case we want to model that $i$ and $j$ are `similar' but $i$ is more `socially active'.''}
+  \end{quote}
+  \item Probability mass function: $\log \text{odds} (N_{ij} = 1 | \mathbf{z}_i, \mathbf{z}_j, \mathbf{x}_{i, j}, \alpha, \beta) = \alpha + \beta' \mathbf{x}_{i,j} + \frac{\mathbf{z}_i^\prime \mathbf{z}_j}{\left\vert \mathbf{z}_j \right\vert}$
+  \item It is rarely used in practice because not implemented in common software.
+ \end{itemize}
+\end{frame}
+
+\begin{frame}
+ \frametitle{Bilinear latent space model}
+ \begin{itemize}
+  \item Instead, a popular choice is to keep the inner product but not standardise by activity and have separate random effects for senders, receivers, and dyads.
+  \item This is called the bilinear model \citep{hoff2005bilinear}.
+  \item $\log \text{odds} (N_{ij} = 1 | \mathbf{z}_i, \mathbf{z}_j, \mathbf{x}_{i, j}, \alpha, \beta) = \alpha + \beta' \mathbf{x}_{i,j} + s_i + r_j + \gamma_{i,j} + \mathbf{z}_i^\prime \mathbf{z}_j$
+  \item Random effects: $s_i$, $r_j$, and $\gamma_{i,j}$ (``additive effects'')
+  \item Bilinear space: $\mathbf{z}_i^\prime \mathbf{z}_j$ (``multiplicative effect'')
+  \item Hence known as the Additive and Multiplicative Effects Model for Network Data \citep[AMEN;][]{hoff2021additive}.
+  \item MLE or Bayesian estimation.
+  \item Software implementations in \texttt{amen} \citep{hoff2015dyadic} and \texttt{latentnet} \citep{krivitsky2008fitting}.
+ \end{itemize}
+\end{frame}
+
+\begin{frame}
+ \frametitle{Example: Influence backbone between EU parliaments}
+ \framesubtitle{\citep{malang2021latent}}
+ \centering
+ \includegraphics[height=0.87\textheight]{lsm_jcms1}
+\end{frame}
+
+\begin{frame}
+ \frametitle{Research question and design}
+ \begin{itemize}
+  \item 39 national chambers in the EU can raise subsidiarity concerns about legislative proposals by the European Commission.
+  \item They coordinate; it is a collective-action situation.
+  \item NETINF algorithm was used to infer the latent influence pathways between parliamentary chambers.
+  \item But how do we explain this structure?
+  \item Coordination among net recipients of funds.
+  \item We are interested in covariates, not the endogenous structure, because the endogenous properties depend on the cut-off threshold for edges we choose for NETINF. $\Rightarrow$ Application of AMEN.
+ \end{itemize}
+\end{frame}
+
+\begin{frame}
+ \frametitle{Usefulness for missing data imputation}
+ \begin{itemize}
+  \item ERGMs and other models require non-missing observations.
+  \item With normal regression, multiple imputation with chained equations (MICE) is a useful approach.
+  \item MICE requires a model for each variable.
+  \item But what would you specify for a dyadic covariate or the network modelled as the dependent variable?
+  \item Latent space models don't require modelling the dependencies, so they are suitable for this.
+  \item Bayesian estimation also means missing values are turned into parameters to be estimated.
+  \item Check out the replication code in \citet{malang2021latent} for an example.
+ \end{itemize}
+\end{frame}
+
+\begin{frame}
+ \includegraphics[height=1.03\textheight]{lsm_jcms2}
+\end{frame}
+
+\begin{frame}
+ \frametitle{Extension: Model-based clustering for social networks}
+ \framesubtitle{\citep{handcock2007model}}
+ Instead of optimising the Euclidean latent space coordinates freely, we could draw them from a multivariate normal distribution with $G$ cluster centers.
+ 
+ \[
+  \mathbf{z}_i \sim \sum_{g=1}^{G} \lambda_g \text{MVN}_d \left( \mu_g, \sigma^2_g I_d \right)
+ \]
+
+ \begin{description}
+  \item[$\mathbf{z}_i$] Coordinate vector of node $i$ in the latent space.
+  \item[$g$] Group index.
+  \item[$G$] Number of groups, or clusters.
+  \item[$\lambda_g$] Probability that a node belongs to the $g$th group.
+  \item[$\text{MVN}$] Multivariate normal distribution.
+  \item[$\mu_g$, $\sigma^2_g$] Parameters of the normal distribution for group $g$.
+  \item[$d$] Dimensions of the Euclidean latent space.
+  \item[$I_d$] $d \times d$ identity matrix (to ensure the variance is on the diagonal).
+ \end{description}
+\end{frame}
+
+\begin{frame}{Illustration of model-based clustering}{Cluster selection $G$ by BIC. Cluster probabilities $\lambda_g$ as pie charts.}
+ \centering
+ \includegraphics[width=0.8\textwidth]{lsm_latent_cluster}
+\end{frame}
+
+\begin{frame}[fragile]{The \texttt{latentnet} package (part of \texttt{statnet})}{\citep{krivitsky2008fitting}}
+<<latentnet-ajps, size = "footnotesize", message = FALSE, warning = FALSE>>=
+library("latentnet")
+data("chemnet", package = "btergm")
+set.seed(12345)
+pol_nw <- network(pol, directed = TRUE)
+set.vertex.attribute(pol_nw, "gov", types$type == "gov")
+
+# Euclidean latent space model with two dimensions
+m1 <- ergmm(pol_nw ~ euclidean(d = 2) + edgecov(infrep) + nodeifactor("gov"))
+
+# Bilinear latent space model with two dimensions and sender random effect
+m2 <- ergmm(pol_nw ~ bilinear(d = 2) + rsender + edgecov(infrep) + nodeifactor("gov"),
+            control = ergmm.control(burnin = 50000, interval = 100))
+
+# Latent cluster model with four clusters
+m3 <- ergmm(pol_nw ~ euclidean(d = 2, G = 4) + edgecov(infrep) + nodeifactor("gov"),
+            control = ergmm.control(burnin = 30000, interval = 50))
+@
+\end{frame}
+
+\begin{frame}[fragile]{The \texttt{latentnet} package (part of \texttt{statnet})}
+<<latentnet-positions, size = "footnotesize", message = FALSE, dev = 'pdf', crop = TRUE, out.width = "100%", fig.width = 9, fig.height = 4>>=
+par(mfrow = c(1, 3))
+plot(m1)
+plot(m2)
+plot(m3)
+@
+\end{frame}
+
+\begin{frame}[fragile]{The \texttt{latentnet} package (part of \texttt{statnet})}
+<<latentnet-table, size = "footnotesize", message = FALSE, warning = FALSE>>=
+library("texreg")
+screenreg(list(m1, m2, m3))
+@
+\end{frame}
+
+\begin{frame}[fragile]{The \texttt{amen} package}
+<<amen-ajps, size = "footnotesize", message = FALSE, warning = FALSE, results = "hide">>=
+library("amen")
+data("chemnet", package = "btergm")
+set.seed(12345)
+
+edgecovs <- array(numeric(), dim = c(nrow(pol), ncol(pol), 1))
+edgecovs[, , 1] <- infrep
+nodeifactors <- matrix(NA, nrow = nrow(pol), ncol = 1)
+nodeifactors[, 1] <- 1 * (types$type == "gov")
+
+# Bilinear (= multiplicative) model with two dimensions without random effects
+m4 <- ame(Y = pol, Xdyad = edgecovs, Xcol = nodeifactors, family = "bin", R = 2,
+          rvar = FALSE, cvar = FALSE, dcor = FALSE, nvar = FALSE, plot = FALSE)
+
+# with additive component: random effects for rows, columns, dyads (but not nodes)
+m5 <- ame(Y = pol, Xdyad = edgecovs, Xcol = nodeifactors, family = "bin", R = 2,
+          rvar = TRUE, cvar = TRUE, dcor = TRUE, nvar = FALSE, plot = FALSE)
+@
+\end{frame}
+
+\begin{frame}[fragile]{The \texttt{amen} package}
+<<amen-plot-m5, size = "footnotesize", message = FALSE, dev = 'pdf', crop = TRUE, out.width = "75%", fig.width = 9, fig.height = 6>>=
+plot(m5) # MCMC diagnostics and goodness of fit
+@
+\end{frame}
+
+\begin{frame}[fragile]{The \texttt{amen} package}
+<<amen-positions-m5, size = "footnotesize", message = FALSE, dev = 'pdf', crop = TRUE, out.width = "57%", fig.width = 6, fig.height = 6>>=
+netplot(Y = pol, X = m5$UVPM) # plot network in the estimated latent bilinear space
+@
+\end{frame}
+
+\begin{frame}
+ \frametitle{Advantages of the latent space model}
+ \begin{itemize}
+  \item Easy to specify: only dimensionality and type of space must be provided.
+  \item One need not worry about dependencies. Easy test of covariate effects.
+  \item Catch-all logic for dependencies.
+  \item No degeneracy issues.
+  \item Various outcome distributions; longitudinal versions available.
+  \item AMEN often predicts really well out of sample \citep[see][]{minhas2019inferential}.
+  \item Useful for imputation of missing network data.
+ \end{itemize}
+\end{frame}
+
+\begin{frame}
+ \frametitle{Disadvantages of the latent space model}
+ \begin{itemize}
+  \item No explicit modelling of dependencies means no improvement of theory around the shape of dependencies.
+  \item Dependencies of first, second, and third order captured, but not higher-order dependence (e.\,g., four-cycles, bow-tie graphlets etc.).
+  \item No guidance on dimensionality.
+  \item Not parsimonious: One parameter per node and dimension.
+  \item Does not work well with isolates.
+  \item Computationally prohibitive for large networks due to Bayesian estimation.
+ \end{itemize}
+ 
+ \medskip
+ 
+ Bottom line: The LSM often fits better and has fewer degeneracy issues but cannot model dependencies explicitly.
+ 
+ \medskip
+ 
+ Useful papers comparing LSM and ERGM (and MRQAP):
+ \begin{itemize}
+   \item \citet{cranmer2017navigating}
+   \item \citet{minhas2019inferential}
+ \end{itemize}
+\end{frame}
+
+\begin{frame}[allowframebreaks]
+	\frametitle{References}
+	\scriptsize
+	\bibliographystyle{apalike}
+	\bibliography{references.bib}
+\end{frame}
+
+\end{document}

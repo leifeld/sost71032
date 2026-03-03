@@ -1,0 +1,98 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{top=3cm, bottom=3cm, left=3cm, right=3cm}
+\usepackage{natbib}
+\usepackage{hyperref}
+\hypersetup{
+  pdftitle={Formative Assessment I},
+  pdfauthor={Philip Leifeld},
+  pdfkeywords={social network analysis, SNA, SOST30022},
+  pdfsubject={},
+  breaklinks=true,
+  colorlinks=true,
+  urlcolor=darkblue,
+  linkcolor=darkblue,
+  citecolor=darkred,
+  bookmarksnumbered
+}
+
+\definecolor{darkred}{rgb}{0.8,0.1,0.1}
+\definecolor{darkblue}{rgb}{0.1,0.1,0.8}
+\definecolor{darkgreen}{cmyk}{1.0,0,1.0,0.2}
+
+\title{Formative Assessment I}
+\author{SOST71032 Statistical Models for Social Networks -- 2025/26 \\ University of Manchester, Department of Social Statistics}
+\date{16 March 2026}
+
+\begin{document}
+\maketitle
+
+<<setup, include=FALSE, cache=FALSE>>=
+library("knitr")
+# set global chunk options
+opts_chunk$set(fig.path = 'figure/fig-', fig.align = 'center', fig.show = 'hold')
+knit_hooks$set(crop=hook_pdfcrop)
+@
+
+\section{Dataset}
+For this assessment, you will be conducting social network analysis on Zachary's Karate Club dataset \citep{zachary1977information} using the \texttt{R} packages taught in the lectures and practicals and any additional materials that are provided.
+The details on the dataset and the research context are provided in \citet{zachary1977information} and the help pages for the dataset.
+You can find the dataset in three \texttt{R} packages:
+\begin{itemize}
+  \item \texttt{igraphdata}:
+<<<dataset_igraphdata>>>=
+data("karate", package = "igraphdata")
+help("karate", package = "igraphdata")
+@
+  \item \texttt{statnet.data}:
+<<<dataset_statnet.data>>>=
+data("zach", package = "statnet.data")
+help("zach", package = "statnet.data")
+@
+  \item \texttt{hydra}:
+<<<dataset_hydra>>>=
+data("karate", package = "hydra")
+help("karate", package = "hydra")
+@
+\end{itemize}
+
+\section{Data analysis}
+This first formative assessment is about exploring, describing, and visualising network data while considering theoretical mechanisms that may have generated the data.
+The second formative assessment will then later ask you to apply statistical modelling techniques to the same network.
+
+The goal in this first formative assessment is to analyse and visualise the network structure and apply descriptive measures to characterise its features.
+In preparation for modelling the network with statistical techniques at a later stage, you should theorise about possible theoretical mechanisms and explore suitable configurations in the data.
+Your tasks are to:
+\begin{enumerate}
+  \item Generate a useful network visualisation of the social network.
+        The nodes should represent actors and links---social ties between them.
+        Format the graph clearly and concisely.
+  \item Pick, use, and interpret suitable measures to characterise features of the overall network structure as well as configurations or network statistics describing locally emergent structure.
+  \item Take the context of the data and the bigger theoretical picture into account in the description and interpretation of results, with a view to modelling the network statistically later.
+  \item Reflect on how the attributes are related to actors' positions in the social setting. What does this information tell you about the makeup of the social group? Are there any surprising or interesting findings?
+\end{enumerate}
+
+\section{Analysis report}
+Write a concise report of up to 1,000 words based on your generated output and interpretation.
+You are not expected to describe the methods of analysis (e.\,g., what is social network analysis, how network measures are calculated, or what they mean in general terms).
+Instead, focus on justifying your analytical choices and describing and interpreting your results, also in the broader context of the dataset.
+While working on your analysis, consult lecture and practical materials including the readings and any additional materials that are provided.
+Use this formative assessment as an opportunity to learn the taught network analysis techniques in more depth and to practice writing such a report with a view to the summative assessment.
+
+\section{Submission}
+\begin{itemize}
+  \item The report should be no longer than 1,000 words.
+  \item Use RMarkdown to create the report. You already know the format from the practicals.
+  \item Submit both the \texttt{.Rmd} and compiled \texttt{.html} or \texttt{.pdf} file.
+  \item The report should be submitted by the deadline via Canvas.
+  \item Use the submission title of \texttt{student ID + title}.
+\end{itemize}
+
+\bibliographystyle{apalike}
+\bibliography{literature}
+
+\end{document}

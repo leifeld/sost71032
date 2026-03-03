@@ -1,0 +1,698 @@
+\documentclass[aspectratio=169]{beamer}
+\usepackage{bm}
+\usepackage{cmbright}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{dcolumn}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{natbib}
+\bibpunct[: ]{(}{)}{;}{a}{}{,}
+\usepackage{tikz}
+\usetikzlibrary{positioning,mindmap,trees}
+\usepackage{tikz-3dplot}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\definecolor{gray}{RGB}{155,155,155}
+\definecolor{bggray}{RGB}{220,220,220}
+
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{navigation symbols}{}
+
+\setbeamercolor{frametitle}{fg=black}
+\setbeamercolor{frametitle}{bg=black!10!white}
+\setbeamerfont{frametitle}{size=\Large}
+
+\setbeamercolor*{title}{bg=white,fg=black}
+\setbeamercolor{alerted text}{fg=orange}
+\setbeamertemplate{blocks}[rounded][shadow=true]
+%\addtobeamertemplate{block begin}{\pgfsetfillopacity{0.8}}{\pgfsetfillopacity{1}}
+\setbeamercolor*{block title}{fg=white,bg=black!10!black}
+\setbeamercolor*{block body}{fg=black!90!black,bg=black!10!white}
+\setbeamercolor{item}{fg=gray} % color of bullets
+\setbeamercolor{subitem}{fg=gray}
+\setbeamercolor{itemize/enumerate subbody}{fg=black}
+
+\setbeamercolor{section in toc}{fg=black}
+\setbeamercolor{subsection in toc}{fg=black}
+\setbeamertemplate{section in toc}[sections numbered]
+\setbeamertemplate{subsection in toc}[subsections numbered]
+
+\newcommand\Wider[2][4em]{%
+	\makebox[\linewidth][c]{%
+		\begin{minipage}{\dimexpr\textwidth+#1\relax}
+			\raggedright#2
+		\end{minipage}%
+	}%
+}
+
+\AtBeginSection[]
+{
+	\begin{frame}
+		\frametitle{Table of contents}
+		\tableofcontents[currentsection]
+	\end{frame}
+}
+
+% reduce spacing between code chunk and printed console output
+\setlength{\OuterFrameSep}{2pt}
+\makeatletter
+\preto{\@verbatim}{\topsep=-8pt \partopsep=-8pt }
+\makeatother
+
+\title{Network Mechanisms, Dependence, and Configurations}
+\author{Developed by Philip Leifeld and delivered by Yan Wang}
+\date{Statistical Models for Social Networks \\
+      SOST71032 $\mid$ Lecture 1 $\mid$ 9 March 2026}
+\titlegraphic{\includegraphics[width=3.5cm]{logo-manchester}}
+
+\begin{document}
+
+<<setup, include=FALSE, cache=FALSE>>=
+library("knitr")
+# set global chunk options
+opts_chunk$set(fig.path = 'figure/fig-', fig.align = 'center', fig.show = 'hold', cache = TRUE)
+#options(formatR.arrow = TRUE, width = 70)
+knit_hooks$set(crop = hook_pdfcrop)
+knitr::opts_chunk$set(dev = 'pdf', crop = TRUE)
+set.seed(12345)
+@
+
+\begin{frame}[plain]
+	\titlepage
+\end{frame}
+
+\begin{frame}{Structure}
+	\begin{tabular}{rrrl}
+		1 & 9 Mar  & YW & Network Mechanisms, Dependence, and Configurations \\
+		2 & 16 Mar & YW & Exponential Random Graph Models: Specification \\
+		3 & 23 Mar & PL & Exponential Random Graph Models: Estimation and Sampling \\
+		4 & 20 Apr & PL & Panel Network Models \\
+		5 & 27 Apr & PL & Relational Event Models \\
+		6 & 8 \& 11 May & PL & Permutation Approaches and Latent Space Models
+	\end{tabular}
+	
+	\bigskip
+	
+	Lectures 1--5 Mon 2--4pm in HBS G6. Lecture 6 Fri 3--5pm in HBS G32 (rescheduled due to bank holiday).
+	
+	\bigskip
+	
+	All practicals Mon 4--6pm in Simon 2.61, delivered by Jingyi Kang.
+	
+	\bigskip
+	
+	Two drop-in sessions Thu 19 \& 26 Mar, 5--6pm in HBS Cordingley lecture theatre.
+	
+	\bigskip
+	
+	These dates, times, and rooms may change; please monitor your personal timetables.
+\end{frame}
+
+\section{Different network structures for different social phenomena}
+
+\begin{frame}
+	\frametitle{\only<1>{What is this?}\only<2>{Romantic and sexual relationships at Jefferson High}}
+	\begin{center}
+		\includegraphics[width=0.51\textwidth]{whatisthis_addhealth.png}
+	\end{center}
+	\hfill \only<2>{\scriptsize{\citep[source:][]{bearman2004chains}}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{\only<1>{What is this?}\only<2>{International bilateral defensive alliances in 2003}}
+	\begin{center}
+		\includegraphics[width=0.61\textwidth]{whatisthis_alliances2003.png}
+	\end{center}
+	\hfill \only<2>{\scriptsize{\citep[source:][]{cranmer2012complex}}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{\only<1>{What is this?}\only<2>{Violent militarised interstate disputes, 1965--2000}}
+	\begin{center}
+		\includegraphics[width=0.5\textwidth]{whatisthis_mid.pdf}
+	\end{center}
+	\hfill \only<2>{\scriptsize{\citep[source:][]{bradshaw2019common}}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{\only<1>{What is this?}\only<2>{Change in interstate migration flows, 2006--2007}}
+	\begin{center}
+		\includegraphics[width=0.79\textwidth]{whatisthis_migration0607.png}
+	\end{center}
+	\hfill \only<1>{\scriptsize{\textcolor{white}{(source: Desmarais and Cranmer, 2012)}}}\only<2>{\scriptsize{\citep[source:][]{desmarais2012statistical}}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{\only<1>{What is this?}\only<2>{Co-authorship among German political scientists, 2014}}
+	\begin{center}
+		\includegraphics[width=0.54\textwidth]{whatisthis_coauthor_de.pdf}
+	\end{center}
+	\hfill \only<1>{\scriptsize{\textcolor{white}{(source: Leifeld 2018)}}}\only<2>{\scriptsize{\citep[source:][]{leifeld2018polarization}}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{\only<1>{What is this?}\only<2>{Co-authorship among Swiss political scientists, 2013}}
+	\begin{center}
+		\includegraphics[width=1.0\textwidth]{whatisthis_coauthor_ch.pdf}
+	\end{center}
+	\hfill \only<1>{\scriptsize{\textcolor{white}{(source: Leifeld and Ingold, 2016)}}}\only<2>{\scriptsize{\citep[source:][]{leifeld2016co}}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{\only<1>{What is this?}\only<2>{Friendship, kinship, and obesity}}
+	\begin{center}
+		\href{http://doi.org//10.1056/NEJMsa066082}{\includegraphics[width=0.76\textwidth]{whatisthis_framingham2000.png}}
+	\end{center}
+	\hfill \only<2>{\scriptsize{\citep[click on the picture and view the animation with sound on; source:][]{christakis2007spread}}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Empirical networks with different structures in the area of politics}
+	\begin{tabular}{ccc}
+		Legislative cosponsorship & Policy debates & Terrorism \\
+		\includegraphics[width=0.23\textwidth]{ubiquitous_cosponsorship} & \includegraphics[width=0.23\textwidth]{ubiquitous_s21} & \includegraphics[width=0.23\textwidth]{ubiquitous_terror} \\
+		\scalebox{0.5}{\citet{fowler2006legislative}} & \scalebox{0.5}{\citet{nagel2015polarisierung}} & \scalebox{0.5}{\citet{krebs2002mapping}} \vspace{1mm} \\
+		International alliances & Interest groups & International assessments \\
+		\includegraphics[width=0.23\textwidth]{ubiquitous_alliances2003} & \includegraphics[width=0.23\textwidth]{ubiquitous_boxsteff} & \includegraphics[width=0.23\textwidth]{ubiquitous_epistemic} \\
+		\scalebox{0.5}{\citet{cranmer2012complex}} & \scalebox{0.5}{\citet{box2014evolution}} & \scalebox{0.5}{\citet{leifeld2017membership}} \\
+	\end{tabular}
+\end{frame}
+
+\begin{frame}{Networks as explanans and explanandum}
+	\Wider{
+		\begin{tikzpicture}
+			\node[scale=1] (iv1) at (-6, 2.25) {\large{culture}};
+			\node[scale=1] (iv2) at (-6, 0.75) {\large{psychology}};
+			\node[scale=1] (iv3) at (-6, -0.75) {\large{geography}};
+			\node[scale=1] (iv4) at (-6, -2.25) {\large{strategies}};
+			\node (ml) at (0, 0) {\includegraphics[width=0.3\textwidth]{multilayer}}
+			node[below=2.6] {\tiny{\citet{gomez2020fragility}}};
+			\node[scale=3] (p) at (7, 0) {\Huge{\S}};
+			\node[below=1.1] (policies) at (p) {outcomes};
+			\draw[->, line width = 3] (iv1) -> (ml);
+			\draw[->, line width = 3] (iv2) -> (ml);
+			\draw[->, line width = 3] (iv3) -> (ml);
+			\draw[->, line width = 3] (iv4) -> (ml);
+			\path[->, line width = 3]
+			(ml) edge[bend left = 30] node[above, rotate = -15] {\large{communities}} (p)
+			(ml) edge node[above] {\large{centrality}} (p)
+			(ml) edge[bend right = 30] node[below, rotate = 15] {\large{contagion}} (p);
+		\end{tikzpicture}
+	}
+	
+	\bigskip
+	
+	Networks are often temporal, multilayer, complex systems.
+	
+	\smallskip
+	
+	To understand them, we need to look at antecedents, endogenous processes, and consequences.
+\end{frame}
+
+\section{Network mechanisms and configurations}
+
+\begin{frame}{Friendship and race in a high school: homophily and segregation}{\url{https://public.websites.umich.edu/~mejn/networks/school.gif} (accessed 7 January 2026)}
+	\begin{columns}
+		\column{0.68\textwidth}
+		\includegraphics[width=1.0\textwidth]{school}
+		\column{0.32\textwidth}
+		``Strength of weak ties'': Those with many weak ties can access more diverse information and are often more successful.
+		
+		\bigskip
+		
+		Clusters represent school classes.
+		
+		\bigskip
+		
+		Bridges = weak ties; within-cluster ties = strong ties.
+	\end{columns}
+	
+	\medskip
+	
+	Green = black; yellow = white; magenta = other.
+\end{frame}
+
+\begin{frame}{Structural holes \citep{burt1992structural}}
+	\begin{columns}
+		\column{0.68\textwidth}
+		\includegraphics[width=1.0\textwidth]{structural_hole}
+		
+		\bigskip
+		
+		\citep{labun2018structural}
+		\column{0.32\textwidth}
+		The node in the middle faces low ``constraint''.
+		
+		\bigskip
+		
+		It can benefit from brokerage or play different parties out against each other.
+		
+		\bigskip
+		
+		It can gather novel information from different parts of the network.
+		
+		\bigskip
+		
+		The empty pockets between the clusters are called ``structural holes''.
+	\end{columns}
+\end{frame}
+
+\begin{frame}{Degree-based preferential attachment: the Barab{\'a}si-Albert model}
+	\includegraphics[width=1.0\textwidth]{preferential_attachment}\\
+	\raggedleft
+	\citep{topirceanu2018weighted}
+	
+	\bigskip
+	
+	\raggedright
+	The ``Matthew effect'' leads to power law degree distributions.
+\end{frame}
+
+\begin{frame}{Structural balance}
+	\begin{columns}
+		\column{0.5\textwidth}
+		\includegraphics[width=1.0\textwidth]{structural_balance1}
+		\column{0.01\textwidth}
+		\column{0.49\textwidth}
+		\includegraphics[width=1.0\textwidth]{structural_balance2}
+	\end{columns}
+	
+	\bigskip
+	
+	\raggedleft
+	\citep{facchetti2011computing}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Dyad, triad, cycle, star}
+	\begin{columns}[b]
+		\column{0.48\textwidth}
+		\begin{itemize}
+		  \item We can count sub-structures.
+			\item A \alert{dyad} is any pair of two vertices.
+			\item A \alert{tie} or \alert{edge} is an adjacent pair of vertices, e.\,g., 3--10 or 6--7.
+			\item A \alert{triad} or \alert{triangle} is a completely connected subgraph of three vertices (1--5--11).
+			\item A \alert{cycle} is a closed path, e.\,g., 6--5--9--7.
+		\end{itemize}
+		\column{0.45\textwidth}
+		\includegraphics[width=1.0\textwidth]{walk.pdf}
+	\end{columns}
+	\begin{itemize}
+		\item In a \alert{star}, a vertex is connected to all other vertices, but they are not connected with each other (e.\,g., 1--2--3--6--10)
+		\item A \alert{loop} is an edge where the source vertex and the target vertex are identical. This corresponds to a diagonal cell entry in a matrix (e.\,g., 1).
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Mechanisms, configurations, and models}
+	\alert{Mechanisms} are causal processes that form networks, for example preferential attachment, homophily, social influence/contagion, brokerage, structural balance, the norm of reciprocity etc. They are at the theoretical level.
+	
+	\bigskip
+	
+	\alert{Configurations} are measurable quantities in networks. Sometimes called ``motifs'', ``ensembles'', ``subgraph counts'', or ``network statistics''.
+	
+	\smallskip
+	
+	For example, density, reciprocity, counts of balanced or unbalanced triads, degree distribution, two-stars, etc.
+	
+	\smallskip
+	
+	They are at the conceptual level and operationalise theoretical mechanisms. They are countable, given network data.
+	
+	\bigskip
+	
+	In network \alert{models}, we usually plug multiple configurations together to test theories of how networks form. For example, exponential random graph models (ERGM), stochastic actor-oriented models (SAOM), relational event models (REM) etc.
+\end{frame}
+
+\section{Dependence between observations}
+
+\begin{frame}{Statistical modelling of networks}
+  \alert{Goal: explain who is connected to whom}.
+  \begin{itemize}
+    \item Based on network \alert{mechanisms} (preferential attachment, structural balance, homophily, etc).
+    \item Based on other \alert{relations} between the same nodes.
+    \item Based on \alert{attributes} of the sender or receiver nodes.
+  \end{itemize}
+  
+  \bigskip
+  
+  The goal is \alert{inference}: we want to build a model about the superpopulation -- i.\,e., if we were to collect another network dataset of the same underlying process, the estimated coefficients should represent the network well.
+  
+  \bigskip
+  
+  Statistical models are \alert{probabilistic}: we want to assess the uncertainty around the estimated coefficients.
+  
+  \bigskip
+  
+  Sometimes, we also want to \alert{explain how networks change over time}.
+  
+  \bigskip
+  
+  And sometimes, we want to \alert{explain why nodes in a network have specific attributes}.
+\end{frame}
+
+\begin{frame}{Overview of statistical network models and techniques}
+	\begin{itemize}
+		\item Exponential Random Graph Model (ERGM). \hfill \quad \alert{$\leftarrow$ lectures 2--3}
+		\begin{itemize}
+			\item[] Extensions: Temporal, Generalized, Count, Multilayer, Multilevel \hfill  {\normalsize \quad \alert{$\leftarrow$ lecture 4}}
+		\end{itemize}
+		\item Stochastic Actor-Oriented Model (SAOM). \hfill \quad \alert{$\leftarrow$ lecture 4}
+		\item Relational Event Model (REM). \hfill \quad \alert{$\leftarrow$ lecture 5}
+		\item Latent Space Models (LSM). \hfill \quad \alert{$\leftarrow$ lecture 6}
+		\item Additive and Multiplicative Effects Network Models (AMEN). \hfill \quad \alert{$\leftarrow$ lecture 6}
+		\item Conditional Uniform Graph  (CUG) Tests. \hfill \quad \alert{$\leftarrow$ lecture 6}
+		\item Quadratic Assignment Procedure (QAP). \hfill \quad \alert{$\leftarrow$ lecture 6}
+		\item Latent Order Logistic Model (LOLOG).
+		\item Network Autocorrelation Model (NAM).
+		\item Auto-Logistic Actor Attribute Model (ALAAM).
+		\item Exponential Random Network Model (ERNM).
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Non-independence of observations}
+	Assumption in regression models: observations are independent and identically distributed (i.i.d.).
+	
+	\bigskip
+	
+	$P(Y) = P(y_1, y_2, \ldots, y_n) = P(y_1) \cdot P(y_2) \cdot \ldots \cdot P(y_n)$
+	
+	\only<2>{\bigskip}
+	
+	\only<2>{$P(Y \mid X) = P(y_1 \mid \mathbf{x}_1) \cdot P(y_2 \mid \mathbf{x}_2) \cdot \ldots \cdot P(y_n \mid \mathbf{x}_n)$}
+	
+	\bigskip
+	
+	If an increase in any $y_i$ were causing a change in any $y_j$, multiplication of $P(y_i)$ and $P(y_j)$ would lead to a biased joint probability $P(Y)$.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Non-independence of observations}
+	\begin{itemize}
+		\item Reconsider this in terms of the likelihood of a model given the data:
+		\[
+		L (\boldsymbol{\theta} | \bm{y}, \bm{X}) = \prod_{i=1}^{n} f ( y_i | \bm{x}_i, \boldsymbol{\theta})
+		\]
+		\item The product implies that one probability does not influence the other.
+		\item Two observations have the same $\hat{y}_i$ if they match on covariates.
+		\item This match cannot be established if one influences the other.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{What happens if we ignore this?}
+	\begin{itemize}
+		\item We can still apply a regression model, i.\,e., compute the likelihood by taking the product.
+		\item However, the aggregated likelihood will be wrong.
+		\item This will falsely attribute explanatory power to covariates.
+		\item Estimates and uncertainty measures (standard errors, $p$ values) are biased.
+		\item We can neither conclude that a covariate effect is really there, nor that the model fits the data adequately.
+		\item We risk faulty inferences.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{The problem of data multiplication}
+	\begin{itemize}
+		\item Undirected network: $\genfrac(){0pt}{}{n}{2}$ edges.
+		\item Directed network: $2{\genfrac(){0pt}{}{n}{2}}$ edges.
+		\item With $n = 100$ actors, this amounts to 9,900 directed edges!
+		\item Problem: each observation is counted several times (e.\,g., 9,900 edges although there are only 100 actors who are causing the observations).
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{The problem of data multiplication}
+	\begin{block}{Perspective 1: \alert{$p$ value shrinkage}}
+		\begin{itemize}
+			\item With increasing $N$, uncertainty $p$ decreases.
+			\item In dyadic regression analysis, we would thus be overconfident in the results.
+		\end{itemize}
+	\end{block}
+	\begin{block}{Perspective 2: \alert{multiparty events}}
+		(cf.\ Cranmer, Leifeld, McClurg, and Rolfe 2017)
+		\begin{itemize}
+			\item WW\,I and WW\,II account for 46.14\% of all wars since 1816.
+			\item 53.44\% of the wars in the 20th century.
+			\item Were WWI and WWII really 567 entirely independent dyadic wars?
+			\item Was Britain's declaration of war on Germany really completely independent of Germany's invasion of Poland?
+		\end{itemize}
+	\end{block}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Unmodelled dependencies as omitted variable bias}
+	If we don't model an important causal factor, a regression model may suffer from omitted variable bias.\\
+	\bigskip
+	$Y = \alpha + \beta_1 X_1 + \beta_2 X_2 + \epsilon$\\
+	\bigskip
+	Example: If an omitted variable $X_3$ is correlated both with $Y$ and $X_2$, too much variance in $Y$ is explained by $X_2$, leading to a biased estimate $\beta_2$.\\
+	\bigskip
+	If we do not model all dependencies, the same result holds!\\
+	\bigskip
+	That leaves us with the task of specifying the dependencies correctly!
+\end{frame}
+
+\begin{frame}
+	\frametitle{Unmodelled dependencies as omitted variable bias}
+	\begin{block}{Omitted variable bias in a GLM}
+		\begin{itemize}
+			\item $Y$: grades
+			\item $X_1$: attendance
+			\item $X_2$: intelligence/skills
+			\item $X_3$: study
+		\end{itemize}
+		If $X_3$ is omitted, grades are wrongly attributed to attendance.
+	\end{block}
+	\begin{block}{Omitted variable bias in a network context}
+		\begin{itemize}
+			\item $Y$: friendship
+			\item $X_1$: similar interests
+			\item $X_2$: individual attractiveness
+			\item $X_3$: network dependence: triadic closure, $k$-stars, reciprocity
+		\end{itemize}
+		If $X_3$ is omitted, $\beta_1$ and $\beta_2$ are potentially biased.
+	\end{block}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Modelling dependencies correctly}
+	\begin{itemize}
+		\item Dependencies often entail more than two nodes.
+		\item Switch from dyad to network level as the observation.
+		\item Which collection of network statistics \emph{and} exogenous covariates makes the structure of the network most likely?
+		\item Specification of dependencies with two or more nodes.
+		\item This is the basic idea of ERGMs!
+		\item But first, we need to discuss permutation tests today.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{The aggregation problem in the social sciences}
+	Morris, Martina (2004): Book Review of Duncan Watts, Six Degrees: The Science of a Connected Age. \href{http://www.cmu.edu/joss/content/reviews/Morris/}{\emph{Journal of Social Structure} 5}:
+	
+	\bigskip
+	
+	\begin{quote}
+		``The true heart of the social sciences: the aggregation problem. Without the aggregation problem, there is only psychology. The problem of creating a whole from some irreducible function of the parts---a social fact---is the raison d'être of social science.''
+	\end{quote}
+	
+	\medskip
+	
+	\begin{quote}
+		[Alan Barton of the Bureau of Applied Social Research suggested back in the 1950s that] ``\alert{survey research was the equivalent of grinding meat into hamburger, then trying to reconstruct the cow}.''
+	\end{quote}
+	
+	\medskip
+	
+	\includegraphics[height=2cm]{dep_beef_grind} \includegraphics[height=2cm]{dep_beef_patty} \includegraphics[height=2cm]{dep_beef_hamburger} \includegraphics[height=2cm]{dep_beef_cogs} \includegraphics[height=2cm]{dep_beef_organs}
+\end{frame}
+
+\section{Network data}
+
+\frame{\frametitle{Elements of networks}
+	\begin{columns}
+		\column{0.5\textwidth}
+		\includegraphics[width=0.9\textwidth]{network_onemode.pdf}
+		\column{0.6\textwidth}
+		\begin{block}{A network $N$ consists of\ldots}
+			\begin{itemize}
+				\item \alert{vertices} (\textit{nodes}, \textit{points})
+				\item denoted as $i, j, k$
+				\item \alert{edges} (\textit{ties}, \textit{lines})
+				\item denoted as $N_{ij}, N_{ik}$ etc.
+			\end{itemize}
+		\end{block}
+		\vspace{0.5cm}
+		\begin{block}{A network\ldots}
+			\begin{itemize}
+				\item is a descriptive model of social reality.
+				\item depicts relations rather than attributes.
+				\item often represents the outcome of a dynamic process.
+			\end{itemize}
+		\end{block}
+	\end{columns}
+}
+
+\begin{frame}
+	\frametitle{Two-mode networks}
+	\begin{columns}
+		\column{0.5\textwidth}
+		\includegraphics[width=0.9\textwidth]{network_twomode.pdf}
+		\column{0.5\textwidth}
+		\begin{block}{Two-mode networks:}
+			\begin{itemize}
+				\item a.k.a.\ bipartite graphs
+				\item a.k.a.\ affiliation networks
+				\item two classes of nodes
+				\item no within-class edges
+			\end{itemize}
+		\end{block}
+		\vspace{0.5cm}
+		\begin{block}{Examples}
+			\begin{itemize}
+				\item employees and departments
+				\item organizations and associations
+				\item managers and boards of directors
+			\end{itemize}
+		\end{block}
+	\end{columns}
+\end{frame}
+
+\frame{\frametitle{Data structures for network analysis}
+	\begin{columns}
+		\column{0.3\textwidth}
+		\begin{block}{Matrix}
+			\vspace{0.3cm}
+			\begin{footnotesize}
+				\begin{tabular}{lllll}
+					& P	& J	& A	& M \\
+					Peter		& 	& 2	& 0	& 1 \\
+					John		& 0	& 	& 0	& 1 \\
+					Anna		& 0	& 0	& 	& 3 \\
+					Mary		& 1	& 1	& 1	&
+				\end{tabular}
+			\end{footnotesize}
+		\end{block}
+		\column{0.4\textwidth}
+		\begin{block}{Graph}
+			\includegraphics[width=1.0\textwidth]{network_directed.pdf}
+		\end{block}
+		\column{0.3\textwidth}
+		\begin{block}{Edge list}
+			\vspace{0.3cm}
+			\begin{footnotesize}
+				\begin{tabular}{llll}
+					Peter		& $\rightarrow$ & John	& 2 \\
+					Peter		& $\rightarrow$ & Mary	& 1 \\
+					John		& $\rightarrow$ & Mary	& 1 \\
+					Anna		& $\rightarrow$ & Mary	& 3 \\
+					Mary		& $\rightarrow$ & Peter & 1 \\
+					Mary		& $\rightarrow$ & John	& 1 \\
+					Mary		& $\rightarrow$ & Anna	& 1
+				\end{tabular}
+			\end{footnotesize}
+		\end{block}
+	\end{columns}
+}
+
+\begin{frame}
+	\frametitle{Network types}
+	\begin{center}
+		\includegraphics[width=0.5\textwidth]{network_types.pdf}
+		\tiny{\citep{leifeld2020netzwerkanalyse}}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Network representation in \texttt{statnet}}
+<<statnet-network-data, size = "footnotesize", message = FALSE, warning = FALSE, results = "hide">>=
+library("statnet") # also loads the network, sna, and ergm packages
+data("knecht", package = "btergm") # school class friendship networks
+@
+<<statnet-network-matrix, size = "footnotesize">>=
+class(friendship)
+length(friendship)
+dim(friendship[[1]])
+table(friendship[[1]])
+isSymmetric(friendship[[1]])
+@
+\end{frame}
+
+\begin{frame}[fragile]{Network representation in \texttt{statnet}}
+<<statnet-network-object, size = "footnotesize", message = FALSE, warning = FALSE>>=
+fr1 <- network(friendship[[1]], directed = TRUE) # create directed network object
+head(demographics)
+dim(demographics)
+set.vertex.attribute(fr1, "ethnicity", demographics$ethnicity) # add node attribute
+set.vertex.attribute(fr1, "sex", demographics$sex) # add node attribute
+list.vertex.attributes(fr1) # list all node attributes saved in the network object
+get.vertex.attribute(fr1, "sex") # get the node attribute back from the network object
+@
+\end{frame}
+
+\begin{frame}[fragile]{Network representation in \texttt{statnet}}
+<<statnet-network-print, size = "footnotesize", message = FALSE, warning = FALSE>>=
+fr1 # summarise the network object
+@
+\end{frame}
+
+\begin{frame}[fragile]{Network representation in \texttt{statnet}}
+<<statnet-network-plot, size = "scriptsize", dev = 'pdf', crop = TRUE, out.width = "47%", fig.width = 8, fig.height = 8>>=
+plot(fr1, displaylabels = TRUE, vertex.col = "sex", vertex.cex = 2, edge.col = "darkgray")
+@
+\end{frame}
+
+\begin{frame}
+	\frametitle{How to enter your network data into the software}
+	\begin{itemize}
+		\item adjacency matrix
+		\item edge list: \texttt{source vertex -- target -- edge weight}
+		\item node list: \texttt{source vertex -- target 1 -- target 2} etc.
+	\end{itemize}
+	
+	\bigskip
+	
+	Matrices are error-prone. \\ Edge and node lists require scripting skills.
+\end{frame}
+
+\begin{frame}[fragile]{How to enter data as an edgelist and convert into a matrix}
+<<statnet-edgelist-enter, size = "footnotesize">>=
+mydata <- matrix(c(
+		"Thomas", "Martin",
+		"Franz", "Martin",
+		"Martin", "Franz",
+		"Anna", "Thomas"
+), ncol = 2, byrow = TRUE)
+mydata
+
+nodes <- unique(c(mydata[, 1], mydata[, 2]))
+nodes
+
+mat <- matrix(0, nrow = length(nodes), ncol = length(nodes))
+rownames(mat) <- colnames(mat) <- nodes
+@
+\end{frame}
+
+\begin{frame}[fragile]{How to enter data as an edgelist and convert into a matrix}
+<<statnet-edgelist-convert, size = "footnotesize", message = FALSE>>=
+for (i in 1:nrow(mydata)) {
+    row.index <- which(nodes == mydata[i, 1])
+    col.index <- which(nodes == mydata[i, 2])
+    mat[row.index, col.index] <- 1
+}
+mat
+
+as.matrix(network(mydata)) # or via network object
+@
+\end{frame}
+
+\begin{frame}[allowframebreaks]
+	\frametitle{References}
+	\scriptsize
+	\bibliographystyle{apalike}
+	\bibliography{references.bib}
+\end{frame}
+
+\end{document}

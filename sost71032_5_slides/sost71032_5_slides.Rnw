@@ -1,0 +1,747 @@
+\documentclass[aspectratio=169]{beamer}
+\usepackage{bm}
+\usepackage{cmbright}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{dcolumn}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{natbib}
+\bibpunct[: ]{(}{)}{;}{a}{}{,}
+\usepackage{tikz}
+\usetikzlibrary{positioning,mindmap,trees}
+\usepackage{tikz-3dplot}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\usepackage{algorithm2e}
+\usepackage{subfigure}
+\definecolor{gray}{RGB}{155,155,155}
+\definecolor{bggray}{RGB}{220,220,220}
+\definecolor{bamberg3}{RGB}{153, 179, 202}
+\definecolor{bamberg4}{RGB}{204, 217, 228}
+
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{navigation symbols}{}
+
+\setbeamercolor{frametitle}{fg=black}
+\setbeamercolor{frametitle}{bg=black!10!white}
+\setbeamerfont{frametitle}{size=\Large}
+
+\setbeamercolor*{title}{bg=white,fg=black}
+\setbeamercolor{alerted text}{fg=orange}
+\setbeamertemplate{blocks}[rounded][shadow=true]
+%\addtobeamertemplate{block begin}{\pgfsetfillopacity{0.8}}{\pgfsetfillopacity{1}}
+\setbeamercolor*{block title}{fg=white,bg=black!10!black}
+\setbeamercolor*{block body}{fg=black!90!black,bg=black!10!white}
+\setbeamercolor{item}{fg=gray} % color of bullets
+\setbeamercolor{subitem}{fg=gray}
+\setbeamercolor{itemize/enumerate subbody}{fg=black}
+
+\setbeamercolor{section in toc}{fg=black}
+\setbeamercolor{subsection in toc}{fg=black}
+\setbeamertemplate{section in toc}[sections numbered]
+\setbeamertemplate{subsection in toc}[subsections numbered]
+
+\newcommand\Wider[2][4em]{%
+  \makebox[\linewidth][c]{%
+    \begin{minipage}{\dimexpr\textwidth+#1\relax}
+      \raggedright#2
+    \end{minipage}%
+  }%
+}
+
+\AtBeginSection[]
+{
+  \begin{frame}
+  \frametitle{Table of contents}
+  \tableofcontents[currentsection]
+  \end{frame}
+}
+
+% reduce spacing between code chunk and printed console output
+\setlength{\OuterFrameSep}{2pt}
+\makeatletter
+\preto{\@verbatim}{\topsep=-8pt \partopsep=-8pt }
+\makeatother
+
+\title{Relational Event Models}
+\author{Philip Leifeld}
+\date{Statistical Models for Social Networks \\
+      SOST71032 $\mid$ Lecture 5 $\mid$ 27 April 2026}
+\titlegraphic{\includegraphics[width=3.5cm]{logo-manchester}}
+
+\begin{document}
+
+<<setup, include=FALSE, cache=FALSE>>=
+library("knitr")
+# set global chunk options
+opts_chunk$set(fig.path = 'figure/fig-', fig.align = 'center', fig.show = 'hold', cache = TRUE)
+#options(formatR.arrow = TRUE, width = 70)
+knit_hooks$set(crop = hook_pdfcrop)
+knitr::opts_chunk$set(dev = 'pdf', crop = TRUE)
+@
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\section{Relational event sequences and conditional independence}
+
+\begin{frame}{What are relational event sequences?}
+\begin{itemize}
+\item Network ties have a time or date stamp.
+\item There is a sender and a receiver (one- or two-mode).
+\item There can be a type, for example a signed or categorical qualifier.
+\item Ties are instantaneous. They don't have a duration.
+\item Either continuous time or ordered event time. Two different models.
+\item Events should be perfectly time-ordered. But tiebreakers are available if not.
+\item Rule of thumb: Events should be more time-ordered than simultaneous.
+\item Estimation techniques for millions of events are available.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Example: statements by political actors in news media debates}{\citep{leifeld2026endogenous}}
+	\includegraphics[width=0.95\textwidth]{rem_coalition_statements}
+\end{frame}
+
+\begin{frame}{Cascades of EU legislative proposals scrutinised by national parliaments}{\citep{malang2019networks, malang2021latent}}
+	\includegraphics[width=1\textwidth]{rem_cascades_labels}
+\end{frame}
+
+\begin{frame}{We find this data structure all the time in politics}
+	\begin{itemize}
+		\item Legislators and the bills they sign on to over time.
+		\item Countries and the treaties they ratify over the years.
+		\item Country memberships in multilateral alliances.
+		\item Country memberships in international governmental organisations.
+		\item Individuals joining protest events.
+		\item Individuals sharing misinformation on social media.
+	\end{itemize}
+
+	\vspace{0.6cm}
+
+	\qquad \includegraphics[height=0.18\textwidth]{rem_cascades_salt2} \qquad \includegraphics[height=0.18\textwidth]{rem_cascades_ep_strasbourg} \qquad \includegraphics[height=0.18\textwidth]{rem_cascades_social_media}
+\end{frame}
+
+\begin{frame}{Dependence in simultaneously observed network ties}
+\begin{itemize}
+\item Inferential goal in statistical network analysis: \\ Explain tie formation using local network structure.
+\item For example, do transitivity, reciprocity, popularity explain the network structure?
+\item With cross-sectional data: exponential random graph model (ERGM).
+\item Convergence of estimation difficult because the ties are simultaneous.
+\item You have to specify the model well such that interactions of local configurations simulate into something that looks like the observed network.
+\item Model degeneracy.
+\item Assumption: All ties may depend on each other. $\Rightarrow$ High dependence situation.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Dependence in panel network data}
+\begin{itemize}
+\item With increasing sequentiality, models are easier to estimate.
+\item With panel data: temporal ERGM (TERGM).
+\item With annual observations, you can condition on previous state of the network.
+\item E.\,g., autoregression, delayed reciprocity, delayed $k$-stars etc.
+\item Everything in the past has already happened and does not need to be explained anymore at $t$.
+\item For example, conditioning on past conflict ties explains parts of the current conflict network and stabilises estimation.
+\item Time steps are \emph{conditionally independent} of each other. \\ $\rightarrow$ Take product of probabilities for time steps.
+\item Only some ties depend on each other. $\Rightarrow$ Partial dependence situation.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Dependence in fully time-ordered relational event sequences}
+\begin{itemize}
+\item At any time $t$, the complete past history has already happened and can be conditioned on.
+\item The probability of an event exclusively depends on the past and on exogenous covariates, but not on any simultaneous network ties or the future.
+\item I.\,e., tie events are conditionally independent given functions of the past event sequence.
+\item If the dependence on past events is fully specified, we can simply take the product of the probabilities for each tie event to form the joint probability of the sequence of observations.
+\item This makes estimation easy. No simulation, just MLE. $\Rightarrow$ Conditional independence situation.
+\item Task: We still need to specify the dependencies on past network ties.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Advantages of relational event models}
+\begin{itemize}
+\item Estimation is easy due to conditional independence.
+\item More flexible specification of model terms than in ERGM because we can include temporal patterns in network motifs. $\Rightarrow$ More precise theory.
+\item Very large datasets can be analysed (with some tweaks).
+\item Signed edges, groups, or multiple relations and their interactions can be modelled intuitively by including them in the same event sequence and specifying the dependencies accordingly.
+\item Variants available for hyper-edges, assessment of temporal heterogeneity, actor-based mechanisms, and other innovations.
+\end{itemize}
+\alert{$\Rightarrow$ We should urgently move from panel to event data collection where feasible!}
+\end{frame}
+
+\section{Model specification}
+
+\begin{frame}{Intuition}
+Each network tie is an event ($e$).
+
+\medskip
+
+Each event has a sender $s_e \in S$, a receiver $r_e \in R$, a type ($a_e \in A$, can be $1$ for all events if not relevant), and a time stamp ($t_e$):
+\[
+e = \left(s_e, r_e, a_e, t_e\right)
+\]
+Events are saved in an event sequence $E$:
+\[
+E = \left\{e_1, \ldots, e_{n}\right\}
+\]
+At each observed event time in the sequence, we ask:
+
+\medskip
+
+What is the probability that this event occurs at time $t_e$ and not some other event that could have occurred?
+\end{frame}
+
+\begin{frame}{Tie events are a function of the past network + covariates}
+Past network from the perspective of time $t$:
+\[
+E_{t - 1} = \left\{e_1, \ldots, e_{t - 1}\right\}
+\]
+We can build network statistics over the past event sequence:
+\[
+u(e_t, E_{t - 1}, \mathbf{X})
+\]
+For example, inertia:
+\[
+u_\text{inertia}(e, E_{t-1}) = \sum_{e^* \in E_{t-1}} [s_{e^*} = s_e] [r_{e^*} = r_e] [a_{e^*} = a_e]
+\]
+where $[\ldots]$ are Iverson brackets, returning 1 if the condition in the brackets is true and 0 otherwise.
+
+\medskip
+
+Inertia: How often did this exact sender--receiver--type combination occur in the past?
+\end{frame}
+
+\begin{frame}{More examples of network statistics}
+Sender activity: How often was the sender of a potential event active in the past?
+\[
+u_\text{activity}(e, E_{t-1}) = \sum_{e^* \in E_{t-1}} [s_{e^*} = s_e]
+\]
+Receiver popularity: How often was the receiver of an event active in the past?
+\[
+u_\text{popularity}(e, E_{t-1}) = \sum_{e^* \in E_{t-1}} [r_{e^*} = r_e]
+\]
+Two-mode homophily: How often did other senders, who share an attribute $v$ with the focal sender, connect to the same receiver in the past?
+\[
+u_\text{homophily}(e, E_{t-1}, \mathbf{v}) =  \frac{\sum_{e^* \in E_{t-1}}[s_{e^*} \neq s_e] [r_{e^*} = r_e] [a_{e^*} = a_e] [v_{s_e} = v_{s_{e^*}}]}{\sum_{e^* \in E_{t-1}}[s_{e^*} \neq s_e] [r_{e^*} = r_e] [a_{e^*} = a_e]}
+\]
+Here: standardised as a share of other actors connecting to the same receiver.
+\end{frame}
+
+\begin{frame}{Standardisation of statistics}
+Rather than raw counts, it is possible to compute shares.
+
+\bigskip
+
+This was proposed in the original REM paper by \citet{butts2008relational}.
+
+\bigskip
+
+For inertia (a.\,k.\,a. persistence):
+\[
+u_\text{inertia-standardised}(e, E_{t-1}) = \frac{\sum_{e^* \in E_{t-1}} [s_{e^*} = s_e] [r_{e^*} = r_e] [a_{e^*} = a_e]}{\sum_{e^* \in E_{t-1}} [s_{e^*} = s_e] [a_{e^*} = a_e]}
+\]
+This represents the share of the sender's total outgoing communication (of type $a_e$) that was devoted to receiver $r_e$. I.\,e., is the receiver a particularly preferred communication partner?
+
+\bigskip
+
+Since this is defined between 0 and 1, it makes it comparable across senders and across time, purging the statistic of activity differentials and accumulation towards the end of the sequence.
+\end{frame}
+
+\begin{frame}{Preferential attachment (standardised)}
+\[
+u_\text{PA-standardised}(e, E_{t - 1}) = \frac{\sum_{e^* \in E_{t-1}} [s_{e^*} = r_e] + \sum_{e^* \in E_{t-1}} [r_{e^*} = r_e]}{\sum_{r \in R} \sum_{e^* \in E_{t-1}} [s_{e^*} = r] + \sum_{r \in R} \sum_{e^* \in E_{t-1}} [r_{e^*} = r]}
+\]
+Total amount of past communication of the receiver, whether outgoing (first sum) or incoming (second sum).
+
+\bigskip
+
+Standardised by the same quantity summed over all possible receivers, not just the focal receiver.
+
+\bigskip
+
+Intuition: ``Actors with past communication tend to become more attractive targets, creating a positive feedback loop that tends to lead to the creation of high degree actors'' \citep{butts2008relational}.
+\end{frame}
+
+\begin{frame}{Temporal decay}
+Not all past events are created equal. Recent events may be more important.
+
+\bigskip
+
+Exponential temporal decay for past events \citep{brandes2009networks}:
+\[
+w(t_e, t, T_{1/2}) = \exp \left\{-(t - t_e) \left( \frac{\log(2)}{T_{1/2}} \right) \right\} \frac{\log(2)}{T_{1/2}}
+\]
+\includegraphics[width=0.58\textwidth]{rem_halflife}
+\end{frame}
+
+\begin{frame}{Network statistics with exponential temporal decay}
+	\begin{equation*}
+		u_\text{inertia}(e, E_{t-1}, T_{1/2}) = \sum_{e^* \in E_{t-1}} [s_{e^*} = s_e] [r_{e^*} = r_e] [a_{e^*} = a_e] w(t_{e^*}, t_e, T_{1/2})
+	\end{equation*}
+
+	\begin{equation*}
+		u_\text{popularity}(e, E_{t-1}, T_{1/2}) = \sum_{e^* \in E_{t-1}} [r_{e^*} = r_e] w(t_{e^*}, t_e, T_{1/2})
+	\end{equation*}
+
+	\begin{equation*}
+		u_\text{activity}(e, E_{t-1}, T_{1/2}) = \sum_{e^* \in E_{t-1}} [s_{e^*} = s_e] w(t_{e^*}, t_e, T_{1/2})
+	\end{equation*}
+
+	\begin{equation*}
+	u_\text{homophily}(e, E_{t-1}, T_{1/2}, \eta) =  \frac{\sum_{e^* \in E_{t-1}}[s_{e^*} \neq s_e] [r_{e^*} = r_e] [a_{e^*} = a_e] w(e^*, t_e, T_{1/2}) \eta(s_e, s_{e^*})}{\sum_{e^* \in E_{t-1}}[s_{e^*} \neq s_e] [r_{e^*} = r_e] [a_{e^*} = a_e] w(e^*, t_e, T_{1/2})}
+\end{equation*}
+with
+\begin{equation*}
+	\eta_\text{categorical}(s_e, s_{e^*}) = [v_{s_e} = v_{s_{e^*}}] \quad \text{or} \quad \eta_\text{continuous}(s_e, s_{e^*}) = \left\vert v_{s_e} - v_{s_{e^*}} \right\vert
+\end{equation*}
+\end{frame}
+
+\begin{frame}{Decay: considerations}
+\begin{itemize}
+\item Other types of decay may be possible:
+\begin{itemize}
+\item Time window: only up to a certain duration into the past is counted.
+\item Power law decay.
+\item Linear decay. Etc.
+\end{itemize}
+\item Effectively captures higher importance of recent events.
+\item But half-life parameter $T_{1/2}$ needs to be specified manually.
+\item Half-life is an assumption. It can be wrong. This can bias the coefficients.
+\item You could do a grid search and accept the model with the highest BIC.
+\item But with $k$ coefficients, this is a $k$-dimensional grid search if they can have different decay.
+\item Personal opinion: Overall, the benefit of weighting recent events higher often outweighs the cost of parameter bias.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Participation shifts}
+\citet{gibson2003participation} enumerated 13 conversational shifts with the following notation:
+\begin{description}
+\item[A, B, X, Y] Senders or receivers.
+\item[AB] Sender A sends to receiver B.
+\item[A0] Sender A sends to a non-sending target.
+\end{description}
+
+\medskip
+
+Turn-receiving P-shifts (= the receiver takes over): \\ \texttt{AB-BA} \quad \texttt{AB-B0} \quad \texttt{AB-BY}
+
+\medskip
+
+Turn-claiming P-shifts (= somebody else takes over as intended): \\ \texttt{A0-X0} \quad \texttt{A0-XA} \quad \texttt{A0-XY}
+
+\medskip
+
+Turn-usurping P-shifts (= somebody interrupts the chain): \\ \texttt{AB-X0} \quad \texttt{AB-XA} \quad \texttt{AB-XB} \quad \texttt{AB-XY}
+
+\medskip
+
+Turn-continuing P-shifts (= the sender pings another receiver): \\ \texttt{A0-AY} \quad \texttt{AB-A0} \quad \texttt{AB-AY}
+
+\medskip
+
+Find more details in \citet{butts2008relational}.
+\end{frame}
+
+\begin{frame}{Cyclicality}
+\[
+\begin{split}
+u_\text{cyclicality}(e, E_{t-1}, T_{1/2}) = \sum_{e_i \in E_{t-1}} \sum_{e_j \in E_{t-1}} \biggl( & [s_{e_i} = r_e] [r_{e_i} = s_{e_j}] [r_{e_j} = s_e] [t_{e_i} < t_{e_j}] \\
+& \sqrt{w(t_{e_i}, t_e, T_{1/2}) w(t_{e_j}, t_e, T_{1/2})} \biggr)
+\end{split}
+\]
+\begin{itemize}
+\item Triadic effect -- summing over two past tie events.
+\item Current receiver sent to other node who sent on to current receiver.
+\item Current receiver = sender to other node: condition 1.
+\item Ensure both past ties refer to the same other node: condition 2.
+\item Other node = sender to current sender: condition 3.
+\item Avoid double counting due to two iterations over past sequence: condition 4.
+\item At the end, multiplication of two temporal weights $< 0$ is counter-acted by square-root.
+\item Intuition: friendship, completion of three-way exchange.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Common alter}
+\[
+\begin{split}
+u_\text{common alter}(e, E_{t-1}, T_{1/2}) = \sum_{e_i \in E_{t-1}} \sum_{e_j \in E_{t-1}} \biggl( & [s_{e_i} = r_e] [r_{e_i} = r_{e_j}] [s_{e_j} = s_e] [t_{e_i} < t_{e_j}] \\
+& \sqrt{w(t_{e_i}, t_e, T_{1/2}) w(t_{e_j}, t_e, T_{1/2})} \biggr)
+\end{split}
+\]
+\begin{itemize}
+\item Number of times current sender and receiver both sent to other node.
+\item Current receiver = past sender to other node: condition 1.
+\item Ensure both past ties refer to the same other node: condition 2.
+\item Current sender = past sender to other node: condition 3.
+\item Intuition: Triadic closure if two nodes share a contact.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Edge-wise shared partners}
+\[
+\begin{split}
+u_\text{ESP}(e, E_{t-1}, T_{1/2}) = \sum_{e_i \in E_{t-1}} \sum_{e_j \in E_{t-1}} \biggl( & [s_{e_i} = s_e] [r_{e_i} = s_{e_j}] [r_{e_j} = r_e] [t_{e_i} < t_{e_j}] \\
+& \sqrt{w(t_{e_i}, t_e, T_{1/2}) w(t_{e_j}, t_e, T_{1/2})} \biggr)
+\end{split}
+\]
+\begin{itemize}
+\item Number of times current sender and receiver both sent to other node.
+\item Current sender = past sender to other node: condition 1.
+\item Ensure both past ties refer to the same other node: condition 2.
+\item Current receiver = past receiver from other node: condition 3.
+\item Intuition: Transitivity or efficiency of (information) flows.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Reciprocity}
+\[
+u_\text{reciprocity}(e, E_{t-1}, T_{1/2}) = \sum_{e^* \in E_{t-1}} [s_{e^*} = r_e] [r_{e^*} = s_e] w(t_{e^*}, t_e, T_{1/2})
+\]
+Intuition: Norm of reciprocity due to increased trust or feeling of indebtedness.
+\end{frame}
+
+\begin{frame}{Exogenous covariates I}
+\alert{Dyadic covariate}:
+\[
+u_\text{covariate}(e, \mathbf{X}) = \mathbf{X}_{s_e, r_e}
+\]
+Example: Does spatial proximity between $s_e$ and $r_e$ influence conflicts between them?
+
+\bigskip
+
+\alert{Categorical attribute match}:
+\[
+u_\text{match}(e, \mathbf{x}) = [\mathbf{x}_{s_e} = \mathbf{x}_{r_e}]
+\]
+Example: Do two legislators from the same party support each other more?
+
+\bigskip
+
+\alert{Absolute difference} (for interval-scaled attributes):
+\[
+u_\text{absdiff}(e, \mathbf{x}) = \left\vert\mathbf{x}_{s_e} - \mathbf{x}_{r_e}\right\vert
+\]
+Example: Does a greater age difference lead to more (or less) political discussion?
+\end{frame}
+
+\begin{frame}{Exogenous covariates II}
+\alert{Sender covariate}:
+\[
+u_\text{sender-cov}(e, \mathbf{x}) = \mathbf{x}_{s_e}
+\]
+Example: Does seniority lead to more outgoing advice?
+
+\bigskip
+
+\alert{Receiver covariate}:
+\[
+u_\text{receiver-cov}(e, \mathbf{x}) = \mathbf{x}_{r_e}
+\]
+Example: Does greater wealth attract more incoming friendship requests?
+
+\bigskip
+
+It's also possible to mix attributes with endogenous statistics like edge-wise shared partners.
+
+\bigskip
+
+There is an infinite number of possible statistics. Be creative to operationalise theory!
+\end{frame}
+
+\begin{frame}{Intuition: survival analysis $\times$ network analysis}
+So far: Operationalisation of theory via $u$ statistics. But how do we use them to model the probability of an event?
+
+\bigskip
+
+REMs are a cross-over between survival analysis and network analysis.
+
+\bigskip
+
+There are two models:
+\begin{enumerate}
+\item \alert{Continuous-time REM} (e.\,g., for email communication, animal behaviour, radio communication, social media). Exact time stamps. The time between events is informative.
+\item \alert{Time-ordered REM} (e.\,g., for statements in daily news media, transcripts of TV debates, institutional responses). Only the temporal order of events is recorded but not the exact time stamp OR measurement with binning into days or similar OR time duration does not matter, only order does.
+\end{enumerate}
+
+\medskip
+
+The continuous-time REM is more involved, but you need to choose based on the empirical process.
+\end{frame}
+
+\section{Model definition}
+
+\begin{frame}{Relational event model (continuous time)}{\citep{brandes2009networks, butts2008relational}}
+	\Wider{
+		\[
+		\begin{split}
+			\mathcal{L}(\boldsymbol{\theta} \vert E, \mathbf{X}, \alert<7>{T_{1/2}}) = & \Biggl[ \alert<4>{\prod_{i = 1}^n} \biggl( \alert<2>{\exp \left[\lambda_0 + \boldsymbol{\theta}^\top \alert<7>{\mathbf{u}(s_{e_i}, r_{e_i}, a_{e_i}, \mathbf{X}_{e_i}, E_{t_{e_{i - 1}}}, T_{1/2})}\right]} \\
+			& \times \alert<3>{\prod_{\alert<6>{e^* \in \mathcal{R}_i}} \exp\left\{-\exp \left[\lambda_0 + \boldsymbol{\theta}^\top \alert<7>{\mathbf{u}(s_{e^*}, r_{e^*}, a_{e^*}, \mathbf{X}_{e^*}, E_{t_{e_{i - 1}}}, T_{1/2})}\right] (t_{e^*} - t_{e_{i - 1}})\right\}} \biggr) \Biggr] \\
+			& \times \alert<5>{\prod_{\alert<6>{e^* \in \mathcal{R}_i}} \exp\left\{-\exp \left[\lambda_0 + \boldsymbol{\theta}^\top \alert<7>{\mathbf{u}(s_{e^*}, r_{e^*}, a_{e^*}, \mathbf{X}_{e^*}, E, T_{1/2})}\right] (T - t_{e_{n}})\right\}},
+		\end{split}
+		\]
+
+		\bigskip
+
+		\vbox to 2\baselineskip{
+		\only<2>{\alert{Hazard for the current event.}}%
+		\only<3>{\alert{Probability that none of the events has occurred yet at the recorded time for the focal event since the last event, under exponentially distributed survival times.}}%
+		\only<4>{\alert{Over all edge events in the sequence.}}%
+		\only<5>{\alert{Probability that no event happens between last recorded event and theoretical end of the observation period.}}%
+		\only<6>{\alert{All possible edge events $e^*$ at time $i$ are contained in the risk set $\mathcal{R}_i = S \times R \times A$, \\
+		where $S =$ senders, $R =$ receivers, and $A =$ edge types.}}%
+		\only<7>{\alert{Crucially, network statistics $\mathbf{u}$ require a fixed half-life parameter $T_{1/2}$ over the past event sequence $E_{t_{e_{i - 1}}}$.}}
+		}
+	}
+\end{frame}
+
+\begin{frame}{Relational event model (ordinal time)}{\citep{brandes2009networks, butts2008relational, cox1972regression}}
+	\[
+		\mathcal{L}\left( \boldsymbol{\beta} \vert E, \mathbf{X}, T_{1/2} \right) = \prod_{t = 1}^n \left[ \frac{\exp(\mathbf{u}(e_t,E_{t-1},\mathbf{X},T_{1/2})^\top \boldsymbol{\beta})}{\sum_{e\in R_t} \exp(\mathbf{u}(e,E_{t-1},\mathbf{X},T_{1/2})^\top \boldsymbol{\beta})} \right]
+	\]
+	\begin{itemize}
+		\item Simplified model when the time since last event is not meaningful.
+		\item Stratified Cox model with time as the stratification variable = conditional logit.
+		\item Product over all risk sets where one event happens and lots of null events in $S \times R \times A$ do not happen.
+		\item We keep the setup with the fixed half-life parameter.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Tie breakers for simultaneous events in the ordinal REM}
+	\alert{Breslow}'s tie breaker \citep{breslow1974covariance}:
+	\[
+		\frac{\prod_{e\in M_t} \exp(\mathbf{u}(e,E_{t-1},\mathbf{X},T_{1/2})^\top \boldsymbol{\beta})}{\left\{\sum_{e\in R_t} \exp(\mathbf{u}(e,E_{t-1},\mathbf{X},T_{1/2})^\top \boldsymbol{\beta})\right\}^{m_t}}
+	\]
+	with number of tied events $m_t$ and the set of tied events $M_t$.
+
+	\bigskip
+
+	\alert{Efron}'s tie breaker \citep{efron1977efficiency}:
+	\[
+		\frac{\prod_{e\in M_t} \exp(\mathbf{u}(e,E_{t-1},\mathbf{X},T_{1/2})^\top \boldsymbol{\beta})}{\prod_{k=1}^{m_t} \left(\sum_{e\in R_t} \exp(\mathbf{u}(e,E_{t-1},\mathbf{X},T_{1/2})^\top \boldsymbol{\beta}) \underbrace{- \frac{k-1}{m_t}\sum_{e\in M_t} \exp(\mathbf{u}(e,E_{t-1},\mathbf{X},T_{1/2})^\top \boldsymbol{\beta})}_{\mbox{Efron's correction}}\right)}
+	\]
+\end{frame}
+
+\section{REM: Software implementation}
+
+\begin{frame}{Software implementations (in \texttt{R})}
+\begin{enumerate}
+\item Manual implementation of the ordinal-time REM.
+\begin{enumerate}
+\item \texttt{clogit} function in the \texttt{survival} package.
+\item \texttt{coxph} function in the \texttt{survival} package.
+\item \texttt{mlogit} function in the \texttt{mlogit} package.
+\item Write up log likelihood and use \texttt{optim} function to maximise.
+\item \texttt{rem} (Brandenberger): Prepare two-mode REM statistics.
+\end{enumerate}
+\item remverse (Mulder, Tilburg Network Group).
+\begin{enumerate}
+\item \texttt{remify}: Processing and transforming REM data.
+\item \texttt{remstats}: Create network statistics for REMs.
+\item \texttt{remstimate}: Estimate continuous and ordinal REM.
+\item \texttt{remx}: Mixed effects and large REMs.
+\item \texttt{bremory}: Investigate temporal decay.
+\item \texttt{remulate}: Simulate REM sequences.
+\end{enumerate}
+\item Original REM implementation (Butts and colleagues, UC Irvine).
+\begin{enumerate}
+\item \texttt{relevent}: Estimate continuous and ordinal REMs.
+\item \texttt{informR}: Create network statistics for REMs.
+\end{enumerate}
+\item \texttt{eventnet} (Lerner, Konstanz): relational hyper-event models and large REMs.
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Manual software implementation of ordinal-time REM}
+The ordinal REM is easy to implement without any package:
+
+\medskip
+
+\begin{enumerate}
+\item Create data frame:
+\begin{itemize}
+\item Rows: $\vert S \vert \times \vert R \vert \times \vert A \vert \times n$ rows, for all sender--receiver--type--time combinations.
+\item Columns: sender, receiver, type, time, binary event indicator (true or null event), and all pre-computed network statistics.
+\item You can use \texttt{R}'s \texttt{grid.expand} function and then add the remaining columns.
+\end{itemize}
+\item Estimate the model:
+\begin{itemize}
+\item Run the \texttt{clogit} function from the \texttt{survival} package.
+\item Use the event indicator (1 or 0) as dependent variable.
+\item Use argument \texttt{strata = time} to define risk set and time structure.
+\item Optionally, use \texttt{method} argument for selecting tiebreaker.
+\end{itemize}
+\end{enumerate}
+
+\medskip
+
+This gives you very high flexibility in designing your own statistics, breaking ties etc.
+
+\medskip
+
+Or use existing REM implementations in \texttt{R} packages \texttt{relevent} or \texttt{remstimate}.
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{remstats} package: relational event sequences}
+\footnotesize
+<<rem-history>>=
+library("remstats")
+data(history)
+head(history)
+tail(history)
+@
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{remstats} package: node attribute data}
+\begin{footnotesize}
+<<rem-info>>=
+data(info)
+head(info)
+tail(info)
+@
+\end{footnotesize}
+\texttt{time} denotes the time at which a node's attributes change.
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{remstats} package: relational covariates}
+\begin{footnotesize}
+<<rem-male>>=
+head(both_male_long)
+tail(both_male_long)
+@
+\end{footnotesize}
+Dyadic covariate in the form of an edge list.
+\end{frame}
+
+\begin{frame}{Four steps from data preparation to model estimation}
+A REM analysis with the remverse packages proceeds in four steps:
+\begin{enumerate}
+\item Use the \texttt{remify} package to put the event sequence and attribute datasets together into a \texttt{remify} object.
+\item Use the \texttt{remstats} package to create a formula with network statistics to include.
+\item Use the \texttt{remstats} function to compute the network statistics from the formula with the \texttt{remify} object.
+\item Use the \texttt{remstimate} package to estimate the coefficients.
+\end{enumerate}
+\end{frame}
+
+\begin{frame}[fragile]{1) \texttt{remify} package: create \texttt{remify} object}
+Compute the network statistics and create relational event history object:
+\begin{small}
+<<rem-rehobject>>=
+library("remify")
+rehObject <- remify(edgelist = history, model = "tie")
+
+rehObject
+@
+\end{small}
+\end{frame}
+
+\begin{frame}[fragile]{2) \texttt{remstats} package: define formula with network statistics}
+Create formula with network statistics $\mathbf{u}$:
+\begin{small}
+<<rem-effects>>=
+effects <- ~ 1 +
+  send(variable = "extraversion", attr_actors = info) + # sender node covariate
+  inertia() + # inertia statistic
+  tie(variable = "both_male", attr_dyads = both_male_long) + # dyadic covariate
+  otp() # Outgoing two-path (= common alter)
+
+class(effects)
+
+effects
+
+# List of available statistics: ?tie_effects
+@
+\end{small}
+\end{frame}
+
+\begin{frame}[fragile]{3) \texttt{remstats} package: compute network statistics}
+Take the formula and the data object and evaluate the statistics:
+\begin{small}
+<<rem-remstats>>=
+statsObject <- remstats(reh = rehObject,
+                        tie_effects = effects,
+                        memory = "decay",
+                        memory_value = 200)
+statsObject
+@
+\end{small}
+\end{frame}
+
+\begin{frame}[fragile]{4) \texttt{remstimate} package: estimate coefficients}
+Take the \texttt{remify} and \texttt{remstats} objects and estimate the model:
+\begin{footnotesize}
+<<rem-remstimate>>=
+library("remstimate") # try vignette("remstimate") for a tutorial!
+fit <- remstimate(reh = rehObject,
+                  stats = statsObject,
+                  method = "MLE")
+fit
+@
+\end{footnotesize}
+\end{frame}
+
+\begin{frame}[fragile]{Model summary}
+\begin{footnotesize}
+<<rem-summary>>=
+summary(fit)
+@
+\end{footnotesize}
+\end{frame}
+
+\begin{frame}[fragile]{Ordinal-time REM example: another toy dataset}
+\begin{footnotesize}
+<<rem-ordinal_data>>=
+data(tie_data)
+head(tie_data$edgelist)
+tail(tie_data$edgelist)
+@
+\end{footnotesize}
+\end{frame}
+
+\begin{frame}[fragile]{Ordinal-time REM example: steps 1--4}
+\begin{small}
+<<rem-ordinal_steps>>=
+tie_reh <- remify(edgelist = tie_data$edgelist, model = "tie", ordinal = TRUE)
+tie_reh
+tie_model <- ~ 1 + indegreeSender() + inertia() + reciprocity()
+statsOrdinal <- remstats(reh = tie_reh,
+                         tie_effects = tie_model,
+                         memory = "full") # for illustration: no decay
+fit_ordinal <- remstimate(reh = tie_reh, stats = statsOrdinal)
+@
+\end{small}
+\end{frame}
+
+\begin{frame}[fragile]{Ordinal-time REM example: estimation results}
+\begin{small}
+<<rem-ordinal_results>>=
+summary(fit_ordinal)
+@
+\end{small}
+\end{frame}
+
+\begin{frame}[fragile]{Visualisation of network statistics: boxplot}
+\begin{small}
+<<rem-boxplot, dev = 'pdf', crop = TRUE, out.width = "80%", fig.width = 6, fig.height=4>>=
+boxplot(statsOrdinal, effect = "inertia")
+@
+\end{small}
+\end{frame}
+
+\begin{frame}[fragile]{Visualisation of network statistics: dyad trajectories}
+\begin{small}
+<<rem-trajectories, dev = 'pdf', crop = TRUE, out.width = "80%", fig.width = 6, fig.height=4>>=
+plot(statsOrdinal, effect = "inertia") # five random dyads selected by default
+@
+\end{small}
+\end{frame}
+
+\begin{frame}
+	\frametitle{References}
+	\scriptsize
+	\bibliographystyle{apalike}
+	\bibliography{references.bib}
+\end{frame}
+
+\end{document}

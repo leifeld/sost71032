@@ -1,0 +1,103 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{top=3cm, bottom=3cm, left=3cm, right=3cm}
+\usepackage{natbib}
+\usepackage{hyperref}
+\hypersetup{
+  pdftitle={Formative Assessment I},
+  pdfauthor={Philip Leifeld},
+  pdfkeywords={social network analysis, SNA, SOST30022},
+  pdfsubject={},
+  breaklinks=true,
+  colorlinks=true,
+  urlcolor=darkblue,
+  linkcolor=darkblue,
+  citecolor=darkred,
+  bookmarksnumbered
+}
+
+\definecolor{darkred}{rgb}{0.8,0.1,0.1}
+\definecolor{darkblue}{rgb}{0.1,0.1,0.8}
+\definecolor{darkgreen}{cmyk}{1.0,0,1.0,0.2}
+
+\title{Formative Assessment II}
+\author{SOST71032 Statistical Models for Social Networks -- 2025/26 \\ University of Manchester, Department of Social Statistics}
+\date{16 March 2026}
+
+\begin{document}
+\maketitle
+
+<<setup, include=FALSE, cache=FALSE>>=
+library("knitr")
+# set global chunk options
+opts_chunk$set(fig.path = 'figure/fig-', fig.align = 'center', fig.show = 'hold')
+knit_hooks$set(crop=hook_pdfcrop)
+@
+
+\section{Dataset}
+For this assessment, you will be conducting statistical network modelling on Zachary's Karate Club dataset \citep{zachary1977information} using the \texttt{R} packages taught in the lectures and practicals.
+The details on the dataset and the research context are provided in \citet{zachary1977information} and the help pages for the dataset.
+You can find the dataset in three \texttt{R} packages:
+\begin{itemize}
+  \item \texttt{igraphdata}:
+<<<dataset_igraphdata>>>=
+data("karate", package = "igraphdata")
+help("karate", package = "igraphdata")
+@
+  \item \texttt{statnet.data}:
+<<<dataset_statnet.data>>>=
+data("zach", package = "statnet.data")
+help("zach", package = "statnet.data")
+@
+  \item \texttt{hydra}:
+<<<dataset_hydra>>>=
+data("karate", package = "hydra")
+help("karate", package = "hydra")
+@
+\end{itemize}
+
+\section{Data analysis}
+The goal is to justify a selection of network effects for inclusion in an ERGM, produce a well fitting model by estimating parameters, evaluate convergence and goodness-of-fit diagnostics, and interpret the results about the mechanisms generating the network. Tasks:
+\begin{enumerate}
+  \item \textbf{Model specification}:
+        Select network configurations capturing the important network-generating mechanisms, using visualisation and descriptive network analysis conducted during Formative Assessment I and taking into account the research context.
+        Consult the help pages of the \texttt{ergm} package and the readings to understand the possible choices, and select the most appropriate combination of effects to model the network.
+  \item \textbf{Goodness of fit and convergence diagnostics}:
+        Show the results of an estimated exponential random graph model.
+        The estimation must have been completed using the \texttt{ergm} package.
+        Display goodness-of-fit and convergence diagnostics to support your analysis.
+        Repeat as many times as needed to find a non-degenerate model with good fit.
+        You should present one model containing a combination of significant effects that you think make most sense regarding previous descriptive analyses, conceptual considerations, research context, and peculiarities of the data.
+        Significant parameters must be highlighted.
+        You can report significance at $p < 0.05$ or distinguish between $p < 0.1, < 0.05, < 0.01$.
+        The model must include effects featuring actor attributes.
+  \item \textbf{Interpretation}:
+        Interpret the presented model, i.\,e., presentation of significant and non-significant parameters, taking into account parameter signs and explaining these results, each on their own and in combination, with regard to the research context.
+  \item \textbf{Report}:
+        Write a report on the above steps, supplemented with a table presenting the one estimated model which you think offers the best representation of the data accounting for the research context, and a diagram or table with goodness of fit test results.
+\end{enumerate}
+
+\section{Analysis report}
+Write a concise report of up to 1,000 words based on your generated output and interpretation.
+You are not expected to describe the methods of analysis (e.\,g., what is social network analysis, how network measures are calculated, or what they mean in general terms).
+Instead, focus on justifying your analytical choices and describing and interpreting your results, also in the broader context of the dataset.
+While working on your analysis, consult the lecture and practical materials.
+Use this formative assessment as an opportunity to learn the taught network analysis techniques in more depth and to practice writing such a report with a view to the summative assessment.
+
+\section{Submission}
+\begin{itemize}
+  \item The report should be no longer than 1,000 words.
+  \item Use RMarkdown to create the report. You already know the format from the practicals.
+  \item Submit both the \texttt{.Rmd} and compiled \texttt{.html} or \texttt{.pdf} file.
+  \item The report should be submitted by the deadline via Canvas.
+  \item Use the submission title of \texttt{student ID + title}.
+\end{itemize}
+
+\bibliographystyle{apalike}
+\bibliography{literature}
+
+\end{document}

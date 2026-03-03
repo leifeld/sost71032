@@ -1,0 +1,506 @@
+\documentclass[aspectratio=169]{beamer}
+\usepackage{bm}
+\usepackage{cmbright}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{dcolumn}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{natbib}
+\bibpunct[: ]{(}{)}{;}{a}{}{,}
+\usepackage{tikz}
+\usetikzlibrary{positioning,mindmap,trees}
+\usepackage{tikz-3dplot}
+\definecolor{gray}{RGB}{155,155,155}
+\definecolor{bggray}{RGB}{220,220,220}
+\definecolor{bamberg3}{RGB}{153, 179, 202}
+\definecolor{bamberg4}{RGB}{204, 217, 228}
+
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{navigation symbols}{}
+
+\setbeamercolor{frametitle}{fg=black}
+\setbeamercolor{frametitle}{bg=black!10!white}
+\setbeamerfont{frametitle}{size=\Large}
+
+\setbeamercolor*{title}{bg=white,fg=black}
+\setbeamercolor{alerted text}{fg=orange}
+\setbeamertemplate{blocks}[rounded][shadow=true]
+%\addtobeamertemplate{block begin}{\pgfsetfillopacity{0.8}}{\pgfsetfillopacity{1}}
+\setbeamercolor*{block title}{fg=white,bg=black!10!black}
+\setbeamercolor*{block body}{fg=black!90!black,bg=black!10!white}
+\setbeamercolor{item}{fg=gray} % color of bullets
+\setbeamercolor{subitem}{fg=gray}
+\setbeamercolor{itemize/enumerate subbody}{fg=black}
+
+\setbeamercolor{section in toc}{fg=black}
+\setbeamercolor{subsection in toc}{fg=black}
+\setbeamertemplate{section in toc}[sections numbered]
+\setbeamertemplate{subsection in toc}[subsections numbered]
+
+\newcommand\Wider[2][4em]{%
+  \makebox[\linewidth][c]{%
+    \begin{minipage}{\dimexpr\textwidth+#1\relax}
+      \raggedright#2
+    \end{minipage}%
+  }%
+}
+
+\AtBeginSection[]
+{
+  \begin{frame}
+  \frametitle{Table of contents}
+  \tableofcontents[currentsection]
+  \end{frame}
+}
+
+% reduce spacing between code chunk and printed console output
+\setlength{\OuterFrameSep}{2pt}
+\makeatletter
+\preto{\@verbatim}{\topsep=-8pt \partopsep=-8pt }
+\makeatother
+
+\title{Exponential Random Graph Models: Estimation and Sampling}
+\author{Philip Leifeld}
+\date{Statistical Models for Social Networks \\
+      SOST71032 $\mid$ Lecture 3 $\mid$ 23 March 2026}
+\titlegraphic{\includegraphics[width=3.5cm]{logo-manchester}}
+
+\begin{document}
+
+<<setup, include=FALSE, cache=FALSE>>=
+library("knitr")
+# set global chunk options
+opts_chunk$set(fig.path = 'figure/fig-', fig.align = 'center', fig.show = 'hold', cache = TRUE)
+#options(formatR.arrow = TRUE, width = 70)
+knit_hooks$set(crop = hook_pdfcrop)
+knitr::opts_chunk$set(dev = 'pdf', crop = TRUE)
+@
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\section{Case study: nominations in an epistemic community}
+
+\begin{frame}
+	\frametitle{Case study: Nominations in an epistemic community}
+	\framesubtitle{\citep{leifeld2017membership}}
+	\begin{itemize}
+		\item ``Millennium Ecosystem Assessment'' (2002--2005)
+		\item International scientific assessment.
+		\item Membership recruitment by individual nomination.
+		\item Research question: How do these nominations work?
+		\item By merit/functional requirements or personal affinity?
+		\item 1,360 experts in this policy-relevant network.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Nominations among members}
+	\framesubtitle{Red: survey respondents; green: nominations among respondents}
+	\begin{center}
+		\includegraphics[width=0.54\textwidth]{gof_ec_1_allsurvey}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Nominations among survey respondents}
+	\framesubtitle{Node colours: nationalities; orange: same nationality; no isolates}
+	\begin{center}
+		\includegraphics[width=0.58\textwidth]{gof_ec_2_samenat}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Nominations among survey respondents}
+	\framesubtitle{Node colours: disciplines; blue: same same discipline; no isolates}
+	\begin{center}
+		\includegraphics[width=0.56\textwidth]{gof_ec_3_samediscipline}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Nominations among survey respondents}
+	\framesubtitle{Red: co-authorship in the final assessment report}
+	\begin{center}
+		\includegraphics[width=0.56\textwidth]{gof_ec_4_coauthor}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Collaboration on the assessment report}
+	\framesubtitle{Red: authors; green: chapters; two-mode network}
+	\begin{center}
+		\includegraphics[width=0.58\textwidth]{gof_ec_5_collaboration}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Collaboration on the assessment report}
+	\framesubtitle{One-mode projection for all survey respondents}
+	\begin{center}
+		\includegraphics[width=0.55\textwidth]{gof_ec_6_onemode}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\begin{center}
+		\includegraphics[width=0.64\textwidth]{gof_ec_7_table}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{GOF: full model}
+	\begin{center}
+		\includegraphics[width=0.94\textwidth]{gof_ec_8_full}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{GOF: model without endogenous processes}
+	\begin{center}
+		\includegraphics[width=0.94\textwidth]{gof_ec_9_dyadindep}
+	\end{center}
+\end{frame}
+
+\section{Change statistics and maximum pseudolikelihood estimation (MPLE)}
+
+\begin{frame}
+	\frametitle{Change statistics}
+	\begin{itemize}
+		\item There are always two equivalent ways to specify a network effect:
+		\begin{enumerate}
+			\item The $h$ statistic, or
+			\item its corresponding \emph{change statistic}.
+		\end{enumerate}
+		\item Change statistics are computed at the dyadic level.
+		\item That is, for each $\{ij\}$, we get one value.
+		\item A change statistic is the change in $h$ when the $ij$ dyad is toggled from off to on:\\
+		\[
+		\delta_r^{(ij)}(N) = h_r(N^+_{ij}) - h_r(N^-_{ij})
+		\]
+		\item We use change statistics in estimation.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Example: Reciprocity}
+	$h$ statistic:
+	\[
+	h_\text{reciprocity} = \sum_{i \neq j} N_{ij}N_{ji}
+	\]\\
+	\bigskip
+	And the corresponding change statistic:
+	\[
+	\delta_\text{reciprocity}^{(ij)}(N) = N_{ji}
+	\]\\
+	\bigskip
+	If we toggle $N_{ij}$ on and if the reciprocal relation $N_{ji}$ is also 1, then a value of 1 is added to the statistic.\\
+	\bigskip
+	\[
+	h_\text{reciprocity} = \sum_{i \neq j} N_{ij}N_{ji} = \sum_{i \neq j} N_{ij} \delta_{ij} = h_\text{edgecov}
+	\]
+\end{frame}
+
+\begin{frame}
+	\frametitle{Maximum Pseudolikelihood Estimation (MPLE)}
+	A matrix with change statistics for all dyads can be included as $X$ in a dyadic covariate in an ERGM.
+	
+	\medskip
+	
+	I.\,e., the ERGM can be expressed as the probability of an edge from node $i$ to node $j$ conditional on the rest of the network:
+	\[
+	\pi_{ij}(\boldsymbol{\theta}) = P(N_{ij} = 1|N_{-ij}, \boldsymbol{\theta}) = \text{logit}^{-1}\left(\sum_{r=1}^R \theta_r \delta_{r}^{(ij)}(N) \right)
+	\] where \\
+	\begin{itemize}
+		\item $N_{-ij}$ refers to the entire network $N$ except for the dyad $N_{ij}$,
+		\item $\text{logit}^{-1}$ is the inverse logistic function such that  $\text{logit}^{-1}(x) = 1/(1+\exp(-x))$,
+		\item $r$ refers to any effect included in the $\mathbf{h}$ vector, of length $R$,
+		\item $\delta_{r}^{(ij)}(N)$ is equal to the change in $h_r$ when $N_{ij}$ is changed from zero to one.
+	\end{itemize}
+	
+	\medskip
+	
+	However, this means the endogenous statistic is no longer endogenously emergent; the location of what happens where in the network is now fixed. $\Rightarrow$ Bias.
+\end{frame}
+
+\section{Network sampling using Markov chain Monte Carlo methods}
+
+\begin{frame}
+	\frametitle{MCMC network sampling}
+	\begin{itemize}
+		\item Network sampling is the process of simulating new networks with given parameters.
+		\item Markov Chain Monte Carlo (MCMC) sampling procedure.
+		\item E.\,g., based on the Metropolis--Hastings algorithm.
+		\item For example: given a set of model terms and $\pmb{\theta}$ parameters: produce some artificial networks.
+		\item Sampling is a critical element necessary for ERGM estimation.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{The Metropolis--Hastings algorithm}
+	\begin{enumerate}
+		\item Set parameters $\pmb{\theta}$, e.\,g., \texttt{edges} = $-2$; \texttt{esp} = $1.5$.
+		\item Create an empty or random network $N$.
+		\item Pick a random dyad and change (= toggle) its state.
+		\item Keep this change with probability: $\min\left\{1, \frac{P(N^*, \pmb{\theta})}{P(N^{m-1}, \pmb{\theta})}\right\}$, \\
+		where the Hastings ratio can be re-expressed as $\exp\{\pmb{\theta}^\top (\mathbf{h}(N^*) - \mathbf{h}(N)) \}$. \\
+		In other words: if this gets the network closer to $\pmb{\theta}$, keep it. \\ Otherwise discard the change sometimes. \\
+		Use difference in sum of change statistics to calculate Hastings ratio.
+		\item Repeat step 4 until the networks do not change a lot anymore.
+		\item Pick the final network in this chain as the resulting simulated network.
+		\item Once ``burned in'', take more samples from chain if desired.
+	\end{enumerate}
+\end{frame}
+
+\begin{frame}
+	\frametitle{MCMC sampling example}
+	\framesubtitle{\citet[145]{lusher2013exponential}: \texttt{edge} = $-2$; \texttt{alternating triangle} = $0.3$}
+	\begin{center}
+		\includegraphics[width=1.0\textheight]{est_metropolis}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{MCMC trace of an \texttt{edges} parameter}
+	\framesubtitle{\citet[144]{lusher2013exponential}: \texttt{edge} = $-2$; \texttt{alternating triangle} = $0.3$}
+	\begin{center}
+		\includegraphics[width=1.0\textheight]{est_mcmctrace}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]{A simple Metropolis-Hastings sampler in \texttt{R}}
+\vspace{-2mm}
+<<metropolis-hastings-sampler, size = "scriptsize", message = FALSE>>=
+library("ergm")
+set.seed(123)
+mat <- matrix(rbinom(400, 1, 0.1), nrow = 20) # start with random 20 x 20 matrix with p = 0.1
+diag(mat) <- 0
+theta1 <- -3   # parameter for edges
+theta2 <- 0.3  # parameter for istar(2)
+trace_statistics <- matrix(NA, nrow = 10000, ncol = 2) # record the subgraph counts
+for (t in 1:10000) { # run MH algorithm for 10,000 iterations
+  rrow <- rcol <- 1
+  while (rrow == rcol) { # sample an off-diagonal cell (keep going until off diagonal)
+    rrow <- sample(1:20, 1)
+    rcol <- sample(1:20, 1)
+  }
+  mat_new <- mat # create a candidate copy of the current network matrix
+  mat_new[rrow, rcol] <- 1 - mat_new[rrow, rcol] # toggle the sampled cell
+  hastings_ratio <- exp((theta1 * (summary(mat_new ~ edges) - summary(mat ~ edges))) 
+      + (theta2 * (summary(mat_new ~ istar(2)) - summary(mat ~ istar(2)))))
+  prob <- min(c(1, hastings_ratio)) # keep the candidate with this probability
+  decision <- rbinom(1, 1, prob) # make a decision based on the calculated probability
+  if (decision == 1) mat <- mat_new # replace matrix by candidate if accepted
+  trace_statistics[t, ] <- summary(mat ~ edges + istar(2)) # record trace
+}
+@
+\end{frame}
+
+\begin{frame}[fragile]{Our sampled network}
+<<mh-network, size = "footnotesize", dev = 'pdf', crop = TRUE, out.width = "45%", fig.width = 8, fig.height = 6, out.extra='angle=90'>>=
+library("ergm")
+nw <- network(mat, directed = TRUE)
+plot(nw)
+@
+\end{frame}
+
+\begin{frame}[fragile]{MCMC traces of our custom sampler}
+<<mh-mctrace, size = "footnotesize", dev = 'pdf', crop = TRUE, out.width = "80%", fig.width = 8, fig.height = 3.5>>=
+plot(1:10000, trace_statistics[, 1], xlab = "", ylab = "edges", type = "l")
+plot(1:10000, trace_statistics[, 2], xlab = "", ylab = "istar(2)", type = "l")
+@
+\end{frame}
+
+\begin{frame}[fragile]{Joint MCMC trace: posterior distribution}
+<<mh-mcposterior, size = "footnotesize", dev = 'pdf', crop = TRUE, out.width = "55%", fig.width = 6, fig.height = 6>>=
+plot(trace_statistics, xlab = "edges", ylab = "istar(2)", type = "l")
+@
+\end{frame}
+
+\begin{frame}[fragile]{MCMC traces: density}
+<<mh-mcdens, size = "footnotesize", dev = 'pdf', crop = TRUE, out.width = "90%", fig.width = 8, fig.height = 4>>=
+par(mfrow = c(1, 2))
+plot(density(trace_statistics[, 1]), main = "edges")
+plot(density(trace_statistics[, 2]), main = "istar(2)")
+@
+\end{frame}
+
+\section{Maximum likelihood estimation for ERGMs}
+
+\begin{frame}
+	\frametitle{MCMC MLE}
+	\begin{itemize}
+		\item Estimation is the reverse problem of sampling: what are the $\pmb{\theta}$ parameters given an observed network (rather than what is the network given the parameters)?
+		\item Estimation of ERGMs is based on MCMC sampling.
+		\item MCMC sampling is combined with the maximum likelihood principle.
+		\item For any sampled network, we can evaluate how close its sampling statistics are to the observed network.
+		\item This can be minimised by sampling over and over again and accepting the parameter configuration that yields the most accurate networks.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{MCMC MLE: the Geyer--Thompson algorithm}
+	\begin{enumerate}
+		\item Sample many networks from the same MCMC chain with some random $\pmb{\theta}$ vector.
+		\item Compute the \emph{average} sample statistics (e.\,g., the average number of shared partners etc.).
+		\item Check how close these sample statistics are to the observed network.
+		\item Apply an MLE minimisation algorithm (e.\,g., Newton--Raphson) to steps 1--3 to find a $\pmb{\theta}$ vector that minimizes the distance between the sample statistics in the sampled networks and the observed network.
+	\end{enumerate}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Illustration: MLE hill climbing with one parameter}
+	\includegraphics[height=0.9\textheight]{est_optimization}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Illustration: multidimensional likelihood}
+	\framesubtitle{\citep[44]{akbar2007statistical}}
+	\includegraphics[height=0.88\textheight]{est_local_maxima_2d}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Illustration: Newton--Raphson optimisation}{\citep{elff2014estimation}}
+	\includegraphics[width=1.0\textwidth]{est_elff_newton_raphson}
+\end{frame}
+
+\begin{frame}
+	\frametitle{MCMC MLE: wrapping up}
+	\begin{itemize}
+		\item Combination of sampling and optimisation.
+		\item Yields unbiased estimates and standard errors.
+		\item Pretty slow.
+		\item A fast but biased alternative: MPLE.
+		\item Recent research has proposed an equilibrium expectation algorithm for faster unbiased estimation \citep{byshkin2018fast}, but it has not been widely adopted.
+	\end{itemize}
+\end{frame}
+
+\section{Case study: the German political science co-authorship network}
+
+\begin{frame}
+	\frametitle{Case study: German polisci co-authorship network}
+	\framesubtitle{\citep{leifeld2018polarization}}
+	\begin{center}
+		\includegraphics[width = 0.54\textwidth]{est_coauthor_de}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Research design}
+	\begin{itemize}
+		\item Two-mode network: $m=$ 1,339 authors $\times$ $n=$ 24,784 publications.
+		\item One-mode projection: $M := N N^T$.
+		\item Threshold value: $w = 1$ or $w = 2$.
+		\item Application of ERGM to $M$.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Model specification}
+	\begin{itemize}
+		\item Multiple co-authors: GWESP.
+		\item Differential productivity/age: GWD.
+		\item Seniority: professor vs postdoc.
+		\item Topic similarity: vector space model using words in publication titles.
+		\item Geographic distance.
+		\item Same affiliation.
+		\item Same chair or team.
+		\item Supervision relation: same affiliation and chair but unequal seniority status.
+		\item Share of articles in English.
+		\item English article similarity. \alert{$\Rightarrow$ Main hypothesis.}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Co-authorship ERGM: results}
+	\fontsize{10}{11}\selectfont
+	\begin{tabular}{l D{)}{)}{12)3} D{)}{)}{12)3} }
+		\toprule
+		& \multicolumn{1}{c}{All edges} & \multicolumn{1}{c}{Intense collaboration} \\
+		\midrule
+		Endogenous model terms           &                        &                        \\
+		\quad Edges                      & -11.60 \; (0.27)^{***} & -12.47 \; (0.32)^{***} \\
+		\quad Edge-wise shared partners  & 1.94 \; (0.06)^{***}   & 2.11 \; (0.07)^{***}   \\
+		\quad Degree distribution        & 0.42 \; (0.08)^{***}   & 0.31 \; (0.09)^{***}   \\
+		Exogenous covariates             &                        &                        \\
+		\quad Publication frequency      & 0.00 \; (0.00)^{***}   & 0.00 \; (0.00)^{***}   \\
+		\quad Professor                  & 0.18 \; (0.04)^{***}   & 0.17 \; (0.04)^{***}   \\
+		\quad Gender: male               & 0.01 \; (0.04)         & -0.07 \; (0.05)        \\
+		\quad Gender homophily           & 0.23 \; (0.06)^{***}   & 0.27 \; (0.07)^{***}   \\
+		\quad Geographic distance        & -0.13 \; (0.02)^{***}  & -0.14 \; (0.02)^{***}  \\
+		\quad Same affiliation           & 1.40 \; (0.07)^{***}   & 1.42 \; (0.08)^{***}   \\
+		\quad Same chair or team         & 1.29 \; (0.11)^{***}   & 1.32 \; (0.12)^{***}   \\
+		\quad Supervision                & 0.35 \; (0.17)^{*}     & 0.27 \; (0.18)         \\
+		\quad Topic similarity           & 23.10 \; (0.74)^{***}  & 23.81 \; (0.84)^{***}  \\
+		\quad Share of English articles  & 0.49 \; (0.10)^{***}   & 0.61 \; (0.11)^{***}   \\
+		\quad English article similarity & 3.03 \; (0.26)^{***}   & 3.64 \; (0.31)^{***}   \\
+		\bottomrule
+		\multicolumn{3}{l}{\tiny{$^{***}p<0.001$, $^{**}p<0.01$, $^*p<0.05$}}
+	\end{tabular}
+\end{frame}
+
+\begin{frame}
+	\frametitle{MCMC diagnostics}
+	\begin{center}
+		\includegraphics[width = 0.58\textwidth]{est_coauthor_mcmc}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Goodness of fit: network properties}
+	\begin{center}
+		\includegraphics[width = 0.56\textwidth]{est_coauthor_boxplots}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{PR: Predicting co-authorship in CH based on DE data}
+	\begin{center}
+		\includegraphics[width = 0.61\textwidth]{est_coauthor_pr}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Predicted probabilities $\sim$ English article similarity}
+	\Wider{\centering \includegraphics[width = 1.0\textwidth]{est_coauthor_predicted_eas}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Simulated networks based on Model 1}
+	\begin{center}
+		\includegraphics[width = 1.0\textwidth]{est_coauthor_sim1}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Simulated networks with English article similarity coefficient = $50$}
+	\Wider{\centering \includegraphics[width = 1.0\textwidth]{est_coauthor_sim2}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Simulated networks with English article similarity coefficient = $-50$}
+	\begin{center}
+		\includegraphics[width = 1.0\textwidth]{est_coauthor_sim3}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Simulations: English article similarity and EI index}
+	{\centering \includegraphics[width = 1.0\textwidth]{est_coauthor_sim_ei}}
+	
+	\medskip
+	
+	To get to an EI index of 0, we need to move the EAS coefficient to about $-4$.
+\end{frame}
+
+\begin{frame}
+	\frametitle{References}
+	\footnotesize
+	\bibliographystyle{apalike}
+	\bibliography{references.bib}
+\end{frame}
+
+\end{document}

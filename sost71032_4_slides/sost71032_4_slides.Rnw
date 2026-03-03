@@ -1,0 +1,857 @@
+\documentclass[aspectratio=169]{beamer}
+\usepackage{bm}
+\usepackage{cmbright}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{dcolumn}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{natbib}
+\bibpunct[: ]{(}{)}{;}{a}{}{,}
+\usepackage{tikz}
+\usetikzlibrary{positioning,mindmap,trees}
+\usepackage{tikz-3dplot}
+\definecolor{gray}{RGB}{155,155,155}
+\definecolor{bggray}{RGB}{220,220,220}
+\definecolor{bamberg3}{RGB}{153, 179, 202}
+\definecolor{bamberg4}{RGB}{204, 217, 228}
+\definecolor{rb}{HTML}{5668B7}
+
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{navigation symbols}{}
+
+\setbeamercolor{frametitle}{fg=black}
+\setbeamercolor{frametitle}{bg=black!10!white}
+\setbeamerfont{frametitle}{size=\Large}
+
+\setbeamercolor*{title}{bg=white,fg=black}
+\setbeamercolor{alerted text}{fg=orange}
+\setbeamertemplate{blocks}[rounded][shadow=true]
+%\addtobeamertemplate{block begin}{\pgfsetfillopacity{0.8}}{\pgfsetfillopacity{1}}
+\setbeamercolor*{block title}{fg=white,bg=black!10!black}
+\setbeamercolor*{block body}{fg=black!90!black,bg=black!10!white}
+\setbeamercolor{item}{fg=gray} % color of bullets
+\setbeamercolor{subitem}{fg=gray}
+\setbeamercolor{itemize/enumerate subbody}{fg=black}
+
+\setbeamercolor{section in toc}{fg=black}
+\setbeamercolor{subsection in toc}{fg=black}
+\setbeamertemplate{section in toc}[sections numbered]
+\setbeamertemplate{subsection in toc}[subsections numbered]
+
+\newcommand\Wider[2][4em]{%
+  \makebox[\linewidth][c]{%
+    \begin{minipage}{\dimexpr\textwidth+#1\relax}
+      \raggedright#2
+    \end{minipage}%
+  }%
+}
+
+\AtBeginSection[]
+{
+  \begin{frame}
+  \frametitle{Table of contents}
+  \tableofcontents[currentsection]
+  \end{frame}
+}
+
+% reduce spacing between code chunk and printed console output
+\setlength{\OuterFrameSep}{2pt}
+\makeatletter
+\preto{\@verbatim}{\topsep=-8pt \partopsep=-8pt }
+\makeatother
+
+\title{Panel Network Models}
+\author{Philip Leifeld}
+\date{Statistical Models for Social Networks \\
+      SOST71032 $\mid$ Lecture 4 $\mid$ 20 April 2026}
+\titlegraphic{\includegraphics[width=3.5cm]{logo-manchester}}
+
+\begin{document}
+
+<<setup, include=FALSE, cache=FALSE>>=
+library("knitr")
+# set global chunk options
+opts_chunk$set(fig.path = 'figure/fig-', fig.align = 'center', fig.show = 'hold', cache = TRUE)
+#options(formatR.arrow = TRUE, width = 70)
+knit_hooks$set(crop = hook_pdfcrop)
+knitr::opts_chunk$set(dev = 'pdf', crop = TRUE)
+@
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\section{Temporal exponential random graph model (TERGM)}
+
+\begin{frame}{ERGM extension: The Temporal ERGM}{\citep{leifeld2018temporal}}
+	Every network $N^t$ \emph{may} depend on $K \in \{0,1,\hdots, T - 1\}$ previous (lagged) networks.
+
+	\bigskip
+
+	Probability of observing $N^t$:
+	\[
+	P(N^{t} \mid N^{t - K}, \ldots, N^{t - 1}, \boldsymbol{\theta}) = \frac{\exp(\boldsymbol{\theta}^\top \alert<2>{\mathbf{h}(N^{t}, N^{t - 1}, \ldots, N^{t - K})})}{c(\boldsymbol{\theta}, N^{t - K}, \ldots, N^{t - 1})}
+	\]
+
+	Assumption: $K$ fully encompasses the dependencies of $N^{t}$. %Networks in the time series occurring prior to $N^{t-K}$ are independent of $N^{t}$.
+
+	\bigskip
+
+	\alert<2>{Configurations can be computed over current and past networks.}
+\end{frame}
+
+\begin{frame}
+	\frametitle{The TERGM}
+	Probability of observing the whole sequence of networks:
+	\[
+	P(N^{K + 1},\ldots, N^{T} \mid N^{1}, \ldots,N^{K}, \boldsymbol{\theta}) = \prod_{t = K + 1}^{T} P(N^{t} \mid N^{t - K}, \ldots, N^{t - 1}, \boldsymbol{\theta})
+	\]
+
+	\bigskip
+
+	Illustration with $T = 8$ and $K = 2$:
+
+	\bigskip
+
+	\begin{tikzpicture}
+		\usetikzlibrary{shapes.misc}
+		\node<1-12>[rectangle, draw] (N1) at (1, 0) {$N^1$};
+		\node<1-12>[rectangle, draw] (N2) at (2, 0) {$N^2$};
+		\node[rectangle, draw] (N3) at (3, 0) {$N^3$};
+		\node[rectangle, draw] (N4) at (4, 0) {$N^4$};
+		\node[rectangle, draw] (N5) at (5, 0) {$N^5$};
+		\node[rectangle, draw] (N6) at (6, 0) {$N^6$};
+		\node[rectangle, draw] (N7) at (7, 0) {$N^7$};
+		\node[rectangle, draw] (N8) at (8, 0) {$N^8$};
+
+		\draw<2>[line width=1pt, ->] (N6.north) -- (6, 0.8) -| (N8.60);
+		\draw<2>[line width=1pt, ->] (N7.north) -- (7, 0.6) -| (N8.120);
+
+		\draw<3>[line width=1pt, ->] (N5.north) -- (5, 0.8) -| (N7.60);
+		\draw<3>[line width=1pt, ->] (N6.north) -- (6, 0.6) -| (N7.120);
+
+		\draw<4>[line width=1pt, ->] (N4.north) -- (4, 0.8) -| (N6.60);
+		\draw<4>[line width=1pt, ->] (N5.north) -- (5, 0.6) -| (N6.120);
+
+		\draw<5>[line width=1pt, ->] (N3.north) -- (3, 0.8) -| (N5.60);
+		\draw<5>[line width=1pt, ->] (N4.north) -- (4, 0.6) -| (N5.120);
+
+		\draw<6>[line width=1pt, ->] (N2.north) -- (2, 0.8) -| (N4.60);
+		\draw<6>[line width=1pt, ->] (N3.north) -- (3, 0.6) -| (N4.120);
+
+		\draw<7>[line width=1pt, ->] (N1.north) -- (1, 0.8) -| (N3.60);
+		\draw<7>[line width=1pt, ->] (N2.north) -- (2, 0.6) -| (N3.120);
+
+		\node<9-12>[rectangle, draw, gray] (c.1.1) at (2, -1) {$N^1$};
+		\node<9-13>[rectangle, draw, gray] (c.1.2) at (3, -1) {$N^2$};
+		\node<9-13>[rectangle, draw, gray] (c.1.3) at (4, -1) {$N^3$};
+		\node<9-13>[rectangle, draw, gray] (c.1.4) at (5, -1) {$N^4$};
+		\node<9-13>[rectangle, draw, gray] (c.1.5) at (6, -1) {$N^5$};
+		\node<9-13>[rectangle, draw, gray] (c.1.6) at (7, -1) {$N^6$};
+		\node<9-13>[rectangle, draw, gray] (c.1.7) at (8, -1) {$N^7$};
+		\node<9-12>[rectangle, draw, gray] (c.1.8) at (9, -1) {$N^8$};
+
+		\node<11-13>[rectangle, draw, gray] (c.2.1) at (3, -2) {$N^1$};
+		\node<11-13>[rectangle, draw, gray] (c.2.2) at (4, -2) {$N^2$};
+		\node<11-13>[rectangle, draw, gray] (c.2.3) at (5, -2) {$N^3$};
+		\node<11-13>[rectangle, draw, gray] (c.2.4) at (6, -2) {$N^4$};
+		\node<11-13>[rectangle, draw, gray] (c.2.5) at (7, -2) {$N^5$};
+		\node<11-13>[rectangle, draw, gray] (c.2.6) at (8, -2) {$N^6$};
+		\node<11-12>[rectangle, draw, gray] (c.2.7) at (9, -2) {$N^7$};
+		\node<11-12>[rectangle, draw, gray] (c.2.8) at (10, -2) {$N^8$};
+
+		\node<8-12>[draw=red, cross out, minimum size = 20, line width = 1pt] (X1) at (1, 0) {};
+		\node<8-12>[draw=red, cross out, minimum size = 20, line width = 1pt] (X2) at (2, 0) {};
+		\node<10-12>[draw=red, cross out, minimum size = 20, line width = 1pt] (X2b) at (2, -1) {};
+		\node<10-12>[draw=red, cross out, minimum size = 20, line width = 1pt] (X8) at (9, -1) {};
+		\node<12>[draw=red, cross out, minimum size = 20, line width = 1pt] (X7) at (9, -2) {};
+		\node<12>[draw=red, cross out, minimum size = 20, line width = 1pt] (X8b) at (10, -2) {};
+
+		\node[left] (network) at (0.5, 0) {network};
+		\node<9->[left, gray] (cov1) at (0.5, -1) {cov.\ 1};
+		\node<11->[left, gray] (cov1) at (0.5, -2) {cov.\ 2};
+	\end{tikzpicture}
+\end{frame}
+
+\section{TERGM specification}
+
+\begin{frame}
+	\frametitle{Exogenous covariate: constant or time-varying}
+	\[
+	h_\text{time-constant covariate} (N^{t},X) = \sum_{i \neq j} N^{t}_{ij} X_{ij}
+	\]
+
+	\bigskip
+
+	\centering or
+
+	\bigskip
+
+	\[
+	h_\text{time-varying covariate} (N^{t},X^{t}) = \sum_{i \neq j} N^{t}_{ij} X^{t}_{ij}
+	\]
+
+	\bigskip
+
+	\centering (where $X$ is a relational matrix of the same dimensions as $N$)
+\end{frame}
+
+\begin{frame}
+	\frametitle{Autoregression and dyadic stability}
+	\[
+	h_\text{positive autoregression} = \sum_{i \neq j} N_{ij}^{t}N_{ij}^{t-1}
+	\]
+
+	\bigskip
+
+	\[
+	h_\text{dyadic stability} = \sum_{i \neq j} N_{ij}^{t} N_{ij}^{t-1} + (1- N_{ij}^{t}) (1-N_{ij}^{t-1})
+	\]
+
+	\bigskip
+
+	\[
+	h_\text{edge innovation} = \sum_{ij} N_{ij}^{t} (1 - N_{ij}^{t-1})
+	\]
+
+	\bigskip
+
+	\[
+	h_\text{edge loss}= \sum_{ij} (1- N_{ij}^{t})N_{ij}^{t-1}
+	\]
+\end{frame}
+
+\begin{frame}
+	\frametitle{Single-period delayed reciprocity}
+	\[
+	h_\text{delayed reciprocity}(N^{t}, N^{t-1}) = \sum_{ji} N^{t}_{ij}N^{t-1}_{ji}
+	\]
+
+	\vspace{1cm}
+	More complex temporal dependencies over more than two time steps are possible. Example: Triadic closure over three time periods.
+\end{frame}
+
+\begin{frame}
+ \frametitle{Time trends and time--covariate interactions}
+ \[
+  h_\text{time-trend} (t, a, b, f) = f(t) \cdot [t \geq a] \times [t \leq b]
+ \]
+  or
+ \[
+  h_\text{timecov} (N^t, X^t, t, a, b, f) = N^t_{ij} \times X^t_{ij} \times f(t) \times [t \geq a] \times [t \leq b]
+ \]
+
+ where\ldots
+ \begin{itemize}
+  \item $t$ is the current time point,
+  \item $a$ is the minimum cut-off value,
+  \item $b$ is the maximum cut-off value, and
+  \item $f(\cdot)$ is an arbitrary function, such as: constant: \\
+  $f(t) = 1$; \quad linear: $f(t) = t$; \quad squared: $f(t) = t^2$.
+ \end{itemize}
+ We can combine multiple time trends in the specification, such as $\theta_1 t + \theta_2 t^2$, for temporally concave or convex intercepts.
+
+ \medskip
+
+ Drop the intercept when including time trends that encompass all time points!
+\end{frame}
+
+\section{Composition change}
+
+\begin{frame}
+ \frametitle{Composition change}
+ \begin{itemize}
+  \item Composition change is not an issue for estimation; just provide matrices with different dimensions.
+  \item If node labels are included in the data, the software will adjust the dimensions automatically.
+ \end{itemize}
+ \begin{center}
+ \begin{tikzpicture}
+  \node[rectangle, draw] (n1) at (0, 0) {$N^1$: 25};
+  \node[rectangle, draw] (n2) at (2, 0) {$N^2$: \only<1-2>{30}\only<3>{\textbf{\alert{30}}}};
+  \node[rectangle, draw] (n3) at (4, 0) {$N^3$: 27};
+  \node[rectangle, draw] (n4) at (6, 0) {$N^4$: 14};
+
+  \node<2->[rectangle, draw, gray] (n1b) at (2, -1) {$N^1$: 25};
+  \node<2->[rectangle, draw, gray] (n2b) at (4, -1) {$N^2$: \only<1-2>{30}\only<3>{\textbf{\alert{30}}}};
+  \node<2->[rectangle, draw, gray] (n3b) at (6, -1) {$N^3$: \only<1-2>{27}\only<3>{\textbf{\alert{27}}}};
+
+  \draw<2->[line width = 1pt, ->, gray] (n1b.40) -- (n2.320);
+  \draw<2->[line width = 1pt, ->, gray] (n2b.40) -- (n3.320);
+  \draw<2->[line width = 1pt, ->, gray] (n3b.40) -- (n4.320);
+ \end{tikzpicture}
+ \end{center}
+ \begin{itemize}
+  \item Imbalance in node numbers means some time points may influence the coefficients more heavily than others.
+ \end{itemize}
+\end{frame}
+
+\section{TERGM estimation}
+
+\begin{frame}{Block-diagonal TERGM structure for MCMC-MLE}
+
+	\definecolor{blockcolor}{RGB}{230, 240, 255}
+	\definecolor{offblockcolor}{RGB}{245, 245, 245}
+
+	\renewcommand{\arraystretch}{1.2}
+
+	\setlength{\tabcolsep}{4pt}
+	\begin{center}
+		\begin{tabular}{|>{\centering\arraybackslash}m{0.8cm}|*{9}{>{\centering\arraybackslash}m{0.8cm}|}}
+			\hline
+			& \multicolumn{3}{c|}{$t_1$} & \multicolumn{3}{c|}{$t_2$} & \multicolumn{3}{c|}{$t_3$} \\
+			\hline
+			& N$_1$ & N$_2$ & N$_3$ & N$_1$ & N$_2$ & N$_3$ & N$_1$ & N$_2$ & N$_3$ \\
+			\hline
+			N$_1$ & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}1 & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- \\
+			\hline
+			N$_2$ & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- \\
+			\hline
+			N$_3$ & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}1 & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- \\
+			\hline
+			N$_1$ & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- \\
+			\hline
+			N$_2$ & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- \\
+			\hline
+			N$_3$ & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}1 & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- \\
+			\hline
+			N$_1$ & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}1 \\
+			\hline
+			N$_2$ & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}1 \\
+			\hline
+			N$_3$ & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{offblockcolor}-- & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}0 \\
+			\hline
+		\end{tabular}
+	\end{center}
+\end{frame}
+
+\begin{frame}{Offset matrix with structural zeros, constrained to $\theta_i = -\infty$}
+
+	\definecolor{blockcolor}{RGB}{230, 240, 255}
+	\definecolor{offblockcolor}{RGB}{245, 245, 245}
+
+	\renewcommand{\arraystretch}{1.2}
+
+	\setlength{\tabcolsep}{4pt}
+	\begin{center}
+		\begin{tabular}{|>{\centering\arraybackslash}m{0.8cm}|*{9}{>{\centering\arraybackslash}m{0.8cm}|}}
+			\hline
+			& \multicolumn{3}{c|}{$t_1$} & \multicolumn{3}{c|}{$t_2$} & \multicolumn{3}{c|}{$t_3$} \\
+			\hline
+			& N$_1$ & N$_2$ & N$_3$ & N$_1$ & N$_2$ & N$_3$ & N$_1$ & N$_2$ & N$_3$ \\
+			\hline
+			N$_1$ & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 \\
+			\hline
+			N$_2$ & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 \\
+			\hline
+			N$_3$ & \cellcolor{blockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 \\
+			\hline
+			N$_1$ & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 \\
+			\hline
+			N$_2$ & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 \\
+			\hline
+			N$_3$ & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 \\
+			\hline
+			N$_1$ & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 \\
+			\hline
+			N$_2$ & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 \\
+			\hline
+			N$_3$ & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{offblockcolor}1 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 & \cellcolor{blockcolor}0 \\
+			\hline
+		\end{tabular}
+	\end{center}
+\end{frame}
+
+\begin{frame}{MPLE with bootstrapped confidence intervals}{\citep{desmarais2012statistical}}
+	\begin{itemize}
+		\item MCMC-MLE may be prohibitively slow when the number of consecutive networks (or network size) increases.
+		\item MPLE is fast, but the standard errors and $p$ values are severely biased.
+		\item MPLE is a consistent estimator (= unbiased in the limit if we can observe many independent networks and pool the results).
+		\item Desmarais's and Cranmer's non-parametric bootstrapping procedure: exploit the fact that consecutive networks are conditionally independent (given covariates).
+		\item Draw $R$ samples of $T-k$ networks from the longitudinally observed series of networks $\{N^{k+1}, \ldots, N^T \}$ (with replacement) and compute $\hat{\boldsymbol{\theta}}$ on each sample.
+		\item Use 2.5\,\% and 97.5\,\% of the resulting distribution as the confidence interval.
+		\item Can also be parallelised to make it even faster.
+	\end{itemize}
+\end{frame}
+
+\section{Software implementation: the \texttt{btergm} package}
+
+\begin{frame}[fragile]{The \texttt{btergm} package: MPLE with bootstrapped confidence intervals}
+<<btergm-alliance-mple, size = "footnotesize", message = FALSE, results = "hide">>=
+library("network")
+library("ergm")
+library("btergm")
+set.seed(12345)
+data("alliances")
+m1 <- btergm(allyNet ~ edges + timecov(transform = function(t) t)
+     + memory("autoregression") + gwesp(0, fixed = TRUE) + edgecov(LSP)
+     + edgecov(warNet) + nodecov("polity") + nodecov("cinc") + absdiff("polity")
+     + absdiff("cinc") + edgecov(contigMat), R = 50)
+@
+\begin{description}
+ \item[\texttt{allyNet}] is a list of 20 network objects (with node attributes).
+ \item[\texttt{contigMat}] is a single matrix (= a constant covariate).
+ \item[\texttt{warNet}] is a list of 20 matrices (= a temporal covariate).
+ \item[\texttt{lNet}] is a list of 20 lagged matrices.
+ \item[\texttt{polity}] and others are (temporally changing) node covariates.
+\end{description}
+\end{frame}
+
+\begin{frame}[fragile]{The \texttt{btergm} package: MCMC-MLE}
+<<btergm-alliance-mcmle, size = "footnotesize", message = FALSE, warning = FALSE, results = "hide">>=
+m2 <- mtergm(allyNet ~ edges + timecov(transform = function(t) t)
+    + memory("autoregression") + gwesp(0, fixed = TRUE) + edgecov(LSP)
+    + edgecov(warNet) + nodecov("polity") + nodecov("cinc")
+    + absdiff("polity") + absdiff("cinc") + edgecov(contigMat))
+@
+
+\medskip
+
+The \texttt{mtergm} function uses MCMC-MLE but takes an hour or so to compute with $20 \times \frac{164 \times 163}{2} =$ 267,320 dyad--years. \texttt{btergm} takes only a few seconds.
+
+\medskip
+
+But do they lead to similar results?
+
+\medskip
+
+Yes -- if there are enough time points.
+\end{frame}
+
+\begin{frame}[fragile]{Results: bootstrapped MPLE vs MCMC-MLE}
+<<btergm-alliance-results, size = "scriptsize", echo = FALSE, message = FALSE, results = "asis">>=
+library("texreg")
+map <- list("edges" = "Edges", "edgecov.timecov1[[i]]" = "Linear time", "edgecov.timecov1" = "Linear time", "edgecov.lNet[[i]]" = "Autoregression", "edgecov.memory[[i]]" = "Autoregression", "edgecov.memory" = "Autoregression","edgecov.LSP[[i]]" = "Shared allies at $t-1$", "edgecov.LSP" = "Shared allies at $t-1$", "gwesp.fixed.0" = "GWESP", "edgecov.warNet[[i]]" = "War", "edgecov.warNet" = "War", "nodecov.polity" = "Polity score (sender)", "absdiff.polity" = "Polity score (absdiff)", "nodecov.cinc" = "Capabilities (sender)", "absdiff.cinc" = "Capabilities (absdiff)", "edgecov.contigMat[[i]]" = "Direct contiguity", "edgecov.contigMat" = "Direct contiguity", "nodecov.year" = "Year")
+texreg(list(m1, m2), single.row = TRUE, custom.coef.map = map,
+       dcolumn = TRUE, booktabs = TRUE, use.packages = FALSE,
+       fontsize = "footnotesize", custom.model.names = c("\\texttt{m1}: \\texttt{btergm}", "\\texttt{m2}: \\texttt{mtergm}"),
+       caption = "Comparison of the two estimation runs. Significant coefficients are similar.",
+       include.aic = FALSE,
+       label = "tab:alliances")
+@
+\end{frame}
+
+\begin{frame}[fragile]{TERGM example with covariate adjustment and small $T$}
+<<btergm-knecht-nodelabels, size = "footnotesize", message = FALSE, warning = FALSE>>=
+data("knecht", package = "btergm")
+sapply(friendship, dim) # composition change over time...
+
+# step 1: make sure the network matrices have node labels
+for (i in 1:length(friendship)) {
+  rownames(friendship[[i]]) <- 1:nrow(friendship[[i]])
+  colnames(friendship[[i]]) <- 1:ncol(friendship[[i]])
+}
+rownames(primary) <- rownames(friendship[[1]])
+colnames(primary) <- colnames(friendship[[1]])
+sex <- demographics$sex
+names(sex) <- 1:length(sex)
+@
+\end{frame}
+
+\begin{frame}[fragile]{TERGM example with covariate adjustment and small $T$}
+<<btergm-knecht-missings, size = "scriptsize", message = TRUE, warning = FALSE>>=
+# step 2: imputation of NAs and removal of absent nodes
+friendship <- handleMissings(friendship, na = 10, method = "remove")
+friendship <- handleMissings(friendship, na = NA, method = "fillmode")
+@
+\end{frame}
+
+\begin{frame}[fragile]{TERGM example with covariate adjustment and small $T$}
+<<btergm-knecht-covariates, size = "footnotesize", message = FALSE, warning = FALSE>>=
+# step 3: adjust dimensions and add nodal covariates to the networks
+for (i in 1:length(friendship)) {
+  s <- adjust(sex, friendship[[i]])
+  friendship[[i]] <- network(friendship[[i]])
+  friendship[[i]] <- set.vertex.attribute(friendship[[i]], "sex", s)
+}
+sapply(friendship, network.size)
+@
+<<btergm-knecht-plot-echo, size = "footnotesize", message = FALSE, warning = FALSE, eval = FALSE, echo = TRUE>>=
+# step 4: plot the networks
+par(mfrow = c(2, 2), mar = c(0, 0, 1, 0))
+for (i in 1:length(friendship)) {
+  plot(network(friendship[[i]]), main = paste("t =", i),
+  usearrows = TRUE, edge.col = "grey50")
+}
+@
+\end{frame}
+
+\begin{frame}[fragile]{TERGM example with covariate adjustment and small $T$}
+<<btergm-knecht-plot-result, size = "footnotesize", message = FALSE, warning = FALSE, dev = 'pdf', crop = TRUE, out.width = "60%", fig.width = 6, fig.height = 4, eval = TRUE, echo = FALSE>>=
+# step 4: plot the networks
+par(mfrow = c(2, 2), mar = c(0, 0, 1, 0))
+for (i in 1:length(friendship)) {
+  plot(network(friendship[[i]]), main = paste("t =", i),
+  usearrows = TRUE, edge.col = "grey50")
+}
+@
+\end{frame}
+
+\begin{frame}[fragile]{TERGM example with covariate adjustment and small $T$}
+<<btergm-knecht-estimation, size = "footnotesize", message = FALSE, warning = FALSE, results = "hide">>=
+# step 5: estimation
+f <- friendship ~ edges + mutual + delrecip + istar(2) + memory(type = "stability") +
+    nodeofactor("sex") + nodeifactor("sex") + nodematch("sex") + edgecov(primary)
+
+m3 <- btergm(f, R = 1000)
+
+m4 <- mtergm(f, control = control.ergm(MCMC.samplesize = 5000, MCMC.interval = 2000))
+@
+\end{frame}
+
+\begin{frame}[fragile]{TERGM example with covariate adjustment and small $T$}
+<<btergm-knecht-results, size = "scriptsize", echo = FALSE, message = FALSE, results = "asis">>=
+map2 <- list("edges" = "Edges", "mutual" = "Reciprocity", "edgecov.delrecip" = "Delayed reciprocity", "edgecov.delrecip[[i]]" = "Delayed reciprocity", "istar2" = "Incoming two-stars", "edgecov.memory[[i]]" = "Edge stability", "edgecov.memory" = "Edge stability", "nodeofactor.sex.2" = "Sex = male (sender)", "nodeifactor.sex.2" = "Sex = male (receiver)", "nodematch.sex" = "Sex (node match)", "edgecov.primary[[i]]" = "Primary school co-attendance", "edgecov.primary" = "Primary school co-attendance")
+texreg(list(m3, m4), single.row = TRUE, custom.coef.map = map2,
+       dcolumn = TRUE, booktabs = TRUE, use.packages = FALSE,
+       fontsize = "footnotesize", custom.model.names = c("\\texttt{m3}: \\texttt{btergm}", "\\texttt{m4}: \\texttt{mtergm}"),
+       caption = "Comparison of the two estimation runs. Note the difference in delayed reciprocity.", label = "tab:knecht")
+@
+\end{frame}
+
+\begin{frame}[fragile]{TERGM example with covariate adjustment and small $T$}
+<<btergm-knecht-gof-btergm-m3, size = "footnotesize", message = FALSE, warning = FALSE, dev = 'pdf', crop = TRUE, out.width = "80%", fig.width = 9, fig.height = 6, results = "hide">>=
+plot(btergm::gof(m3, joint = FALSE)) # goodness of fit with bootstrapped MPLE
+@
+\end{frame}
+
+\begin{frame}[fragile]{TERGM example with covariate adjustment and small $T$}
+<<btergm-knecht-gof-mcmcmle-m4, size = "footnotesize", message = FALSE, warning = FALSE, dev = 'pdf', crop = TRUE, out.width = "80%", fig.width = 9, fig.height = 6, results = "hide">>=
+plot(btergm::gof(m4, joint = FALSE)) # goodness of fit with MCMC-MLE
+@
+\end{frame}
+
+\begin{frame}[fragile]{Out-of-sample prediction: GOF}
+<<btergm-knecht-gof-outofsample, size = "footnotesize", message = FALSE, warning = FALSE, dev = 'pdf', crop = TRUE, out.width = "80%", fig.width = 12, fig.height = 4, results = "hide">>=
+f5 <- friendship[1:3] ~ edges + mutual + delrecip + istar(2) +
+    memory(type = "stability") + nodeofactor("sex") + nodeifactor("sex") +
+    nodematch("sex") + edgecov(primary)
+m5 <- btergm(f5, R = 1000)
+g5 <- btergm::gof(m5, nsim = 1000, target = friendship[[4]],
+    formula = friendship[3:4] ~ edges + mutual + delrecip + istar(2) +
+    memory(type = "stability") + nodeofactor("sex") + nodeifactor("sex") +
+    nodematch("sex") + edgecov(primary), coef = coef(m5),
+    statistics = c(esp, triad.undirected, rocpr))
+plot(g5, rgraph = TRUE)
+@
+\end{frame}
+
+\begin{frame}[fragile]{Out-of-sample prediction: simulation}
+<<btergm-knecht-gof-outofsample-sim, size = "footnotesize", message = FALSE, warning = FALSE, dev = 'pdf', crop = TRUE, out.width = "80%", fig.width = 12, fig.height = 4, results = "hide">>=
+tp <- tergmprepare(f) # create objects taking into account composition change
+s <- simulate_formula(tp$networks$t4 ~ edges + mutual + edgecov(tp$delrecip[[3]]) +
+    istar(2) + edgecov(tp$memory[[3]]) + nodeofactor("sex") + nodeifactor("sex") +
+    nodematch("sex") + edgecov(tp$primary[[3]]), coef = unname(coef(m5)),
+    nsim = 2)
+par(mfrow = c(1, 2), mar = c(0, 0, 1, 0))
+lapply(s, plot)
+@
+\end{frame}
+
+\section{The separable TERGM}
+
+\begin{frame}{The Separable TERGM}{\citep{krivitsky2014separable}}
+TERGM: modelling $(N^2, N^3, N^4)$ conditioning on $(N^1, N^2, N^3)$ via memory term.
+\[
+P(N^{t} \mid N^{t-K}, \ldots, N^{t-1}, \boldsymbol{\theta})
+\]
+
+STERGM: modelling transition matrices between consecutive networks separately:
+\[
+P(N^{t} \mid N^{t-1}, \boldsymbol{\theta}) = P^+(\boldsymbol{\Delta}^+ \mid \boldsymbol{\theta}^+) P^-(\boldsymbol{\Delta}^- \mid \boldsymbol{\theta}^-)
+\]
+\[
+\text{Tie formation: } P^+(\boldsymbol{\Delta}^+ \mid \boldsymbol{\theta}^+), \quad \text{where } \boldsymbol{\Delta}^+ = N^{t} \circ (1 - N^{t - 1})
+\]
+\[
+\text{Tie dissolution: } P^-(\boldsymbol{\Delta}^- \mid \boldsymbol{\theta}^-), \quad \text{where } \boldsymbol{\Delta}^- = (1 - N^{t}) \circ N^{t - 1}
+\]
+More flexibility because we distinguish between formation and stability/dissolution.
+
+\medskip
+
+Disadvantages:
+\begin{enumerate}
+ \item Conditional independence of the two processes ($P^+ \perp\!\!\!\perp P^-$) is a strong assumption. E.\,g., I can't befriend somebody because they lost another friend.
+ \item No bootstrap MPLE $\rightarrow$ need to use (often prohibitively) slow MCMC-MLE.
+\end{enumerate}
+\end{frame}
+
+\section{The stochastic actor-oriented model (SAOM)}
+
+\begin{frame}
+ \frametitle{SAOM \citep{snijders1996stochastic, snijders2017stochastic}}
+ \begin{itemize}
+  \item Stochastic Actor-Oriented Model (SAOM).
+  \item Implemented in the software packages \texttt{SIENA} and \texttt{RSiena}.
+  \item ``Simulation Investigation for Empirical Network Analysis.''
+  \item Same data structure as the TERGM: panel network data.
+  \item Simulation from $t=1$ to $t=2$, from $t=2$ to $t=3$ etc.
+  \item Markov assumption. $T \geq 2, K = 1$.
+  \item Assumes an underlying continuous-time process.
+  \item Mini-steps: forward simulation to the next time step.
+ \end{itemize}
+\end{frame}
+
+\begin{frame}
+ \frametitle{SAOM illustration with popularity and cyclicality}
+  Two stochastic processes:
+  \begin{enumerate}
+   \item Rate-of-change function: which actor is selected?
+   \item Objective function (similar to ERGM): actor can make a tie change.
+  \end{enumerate}
+  \bigskip
+  \pause
+ \begin{center}
+ \begin{tikzpicture}
+  \node<1-4,6-9>[draw=rb] (A) at (0,2) {\textcolor{rb}{A}};
+  \node<5>[draw=orange] (A) at (0,2) {\textcolor{orange}{A}};
+  \node<1-9>[draw=rb] (B) at (0,0) {\textcolor{rb}{B}};
+  \node<1-9>[draw=rb] (C) at (2.5,2) {\textcolor{rb}{C}};
+  \node<1-6,8-9>[draw=rb] (D) at (2.5,0) {\textcolor{rb}{D}};
+  \node<7>[draw=orange] (D) at (2.5,0) {\textcolor{orange}{D}};
+  \node<1-2,4-9>[{draw=rb}] (E) at (5,2) {\textcolor{rb}{E}};
+  \node<3>[{draw=orange}] (E) at (5,2) {\textcolor{orange}{E}};
+  \node<1-9>[draw=rb] (F) at (5,0) {\textcolor{rb}{F}};
+  \node (note) at (7,1) {\only<1-2,9>{\textcolor{white}{mini-step $1$}}\only<3-4>{\alert{mini-step $1$}}\only<5-6>{\alert{mini-step $2$}}\only<7-8>{\alert{mini-step $3$}}};
+  \draw<1-9>[->] (A) -- (C);
+  \draw<1-9>[->] (B) -- (E);
+  \draw<1-9>[->] (C) -- (F);
+  \draw<1-9>[->] (F) -- (D);
+  \draw<2-5>[->] (A) -- (F);
+  \draw<6>[->,dashed,orange] (A) -- (F);
+  \draw<4>[->,draw=orange] (E) -- (F);
+  \draw<5-9>[->] (E) -- (F);
+  \draw<8>[->,orange] (D) -- (E);
+  \draw<9>[->] (D) -- (E);
+  \node<1> (description) at (2.5,-1) {\textcolor{white}{Starting at $t=1$.}};
+  \node<2> (description) at (2.5,-1) {\textcolor{orange}{Starting at $t=1$.}};
+  \node<3> (description) at (2.5,-1) {\textcolor{orange}{E is randomly selected.}};
+  \node<4> (description) at (2.5,-1) {\textcolor{orange}{Popularity: E$\rightarrow$F}};
+  \node<5> (description) at (2.5,-1) {\textcolor{orange}{A is randomly selected.}};
+  \node<6> (description) at (2.5,-1) {\textcolor{orange}{Cyclicality: A$\not\rightarrow$F}};
+  \node<7> (description) at (2.5,-1) {\textcolor{orange}{D is randomly selected.}};
+  \node<8> (description) at (2.5,-1) {\textcolor{orange}{Cyclicality + popularity: D$\rightarrow$E}};
+  \node<9> (description) at (2.5,-1) {\textcolor{orange}{Arriving at last mini-step.}};
+ \end{tikzpicture}
+ \end{center}
+ \only<10>{Estimation: simulation is repeated many times, and $\pmb{\theta}$ is optimized to resemble $t=2$.}
+\end{frame}
+
+\begin{frame}
+ \frametitle{Rate function and objective function}
+ Rate-of-change function (to select actors):
+ \[
+  \forall i:\quad\lambda_i(N^t) = \rho_t.
+ \]
+ where by default $\rho_t$ is a Poisson parameter that is fixed across all actors (but can be defined using covariates). $\rightarrow$ How often per time unit do actors get the opportunity?
+ 
+ \bigskip
+ 
+ Objective function (to form or dissolve a tie or do nothing):
+ \[
+  f_i(\bm{\theta}, N) = \sum_k \theta_k \textrm{h}_{ik}(N).
+ \]
+\end{frame}
+
+\begin{frame}
+ \frametitle{Decision probabilities (given an actor was selected)}
+ \bigskip
+ Actors decide in a similar way as a multinomial logit model:
+ \[
+  Pr(N_{ij}) = \frac{\exp (f_i(\bm{\theta}, N)) }{\sum_{N^* \in \mathcal{N}} \exp (f_i (\bm{\theta}, N^*))}
+ \]
+ 
+ \bigskip
+ 
+ \citet[58]{snijders2010introduction}:\\
+ 
+ \smallskip
+ 
+ \begin{quote}
+  ``The probability that an actor makes a specific change is proportional to the exponential transformation of the objective function of the new network, that would be obtained as the consequence of making this change.''
+ \end{quote}
+
+ \bigskip
+ 
+ Like the ERGM, but from the perspective of actor $i$, given that $i$ was selected for a mini-step.
+\end{frame}
+
+\begin{frame}
+ \frametitle{Model terms: TERGM and SAOM}
+ The SAOM can take the same statistics as the ((S)T)ERGM.
+ 
+ \bigskip
+ 
+ This permits nearly identical theoretical specifications.
+ 
+ \bigskip
+ 
+ With a minor tweak due to the nature of the updating process: the subgraph products are counted from the perspective of node $i$.
+ 
+ \bigskip
+ 
+ Example: reciprocity in the SAOM:
+ \[
+  h_{\text{reciprocity\_saom}} (i) = \sum_{j} N_{ij} N_{ji}
+ \]
+ 
+ For comparison, the ERGM model term for reciprocity:
+ \[
+  h_{\text{reciprocity\_ergm}} = \sum_{i \neq j} N_{ij} N_{ji}
+ \]
+\end{frame}
+
+\section{SAOM: calibration and inference}
+
+\begin{frame}{The SAOM as an agent-based model with calibration}
+\begin{columns}
+\column{0.72\textwidth}
+Agent-based models (ABM) are computer simulations of how individuals act and how their actions and interactions lead to emergent collective behaviour over time.
+
+\bigskip
+
+\emph{Example}: Residents move away when their neighbourhood ratio of foreigners exceeds their \alert{tolerance parameter}, and over time this leads to segregation (Schelling).
+
+\bigskip
+
+\emph{Example}: Sheep and wolves randomly roam over meadows; wolves feed on sheep at some \alert{rate}; sheep feed on grass at some \alert{rate}; grass needs \alert{some time to regrow}; we see ecological population cycles emerge.
+
+\column{0.28\textwidth}
+\includegraphics[width=1.0\textwidth]{saom_netlogo_screenshot}
+
+\smallskip
+
+\includegraphics[width=1.0\textwidth]{saom_schelling11}
+\end{columns}
+\end{frame}
+
+\begin{frame}{The SAOM as an agent-based model with calibration}
+\begin{columns}
+\column{0.63\textwidth}
+\emph{Example}: Individuals adopt opinions of others who are like them up to a certain \alert{dissimilarity}, and this can lead to polarised opinions (Hegselmann/Krause).
+
+\bigskip
+
+But how do we know those parameters?
+
+\bigskip
+
+We estimate them from empirical data by starting with random values and updating the parameters after each simulation run until the emergent phenomenon mirrors the reality found in the data.
+
+\bigskip
+
+We call this process ``\alert{calibration}''.
+
+\bigskip
+
+The SAOM is an ABM, and its estimation is a form of calibration.
+\column{0.37\textwidth}
+\includegraphics[width=1.0\textwidth]{saom_hegselmann_3d}
+
+\smallskip
+
+\includegraphics[width=1.0\textwidth]{saom_bifurcation}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Calibration of agent-based models as conditional inference}
+	ABM calibration uses estimation, not unlike statistical models.
+	
+	\bigskip
+	
+	But inferring the properties of the population process is only possible conditional on the structure of the model being true.
+	
+	\bigskip
+	
+	If we can assume that all our assumptions about agents and their methods hold and the model is calibrated well, then the estimated parameters describe the population process.
+	
+	\bigskip
+	
+	But it is generally hard to test the assumptions of an ABM.
+	
+	\bigskip
+	
+	The best approximation is to do validation using out-of-sample prediction.
+\end{frame}
+
+\section{SAOM assumptions}
+
+\begin{frame}
+ \frametitle{SAOM: assumptions}
+ \begin{enumerate}
+  \item Sequential tie formation.
+  \begin{itemize}
+   \item No collective action (as in the Early Warning System; see Malang et al. 2019).
+   \item No multidirectional actions (as in defensive alliances or e-mails).
+  \end{itemize}
+  \item Primacy of actors.
+  \begin{itemize}
+   \item Actors make decisions on tie formation.
+   \item Incompatible with power grids, brain networks, semantic networks etc.
+  \end{itemize}
+  \item Actors look exactly one step forward.
+  \begin{itemize}
+   \item Incompatible with all but the simplest strategic models.
+   \item Actors cannot look down the game tree.
+  \end{itemize}
+  \item Perfect information $\rightarrow$ theoretical size limit.
+  \begin{itemize}
+   \item Actors need to consider all dyads in the network.
+   \item With only 150 actors, this means evaluating 11,175 dyads.
+  \end{itemize}
+ \end{enumerate}
+\end{frame}
+
+\begin{frame}{Calibration as conditional inference}{The TERGM vs SAOM debate \citep{leifeld2019theoretical, block2022circular, leifeld2022stochastic}.}
+	\Wider{\centering\fbox{\includegraphics[height=0.8\textheight]{saom_nws1}} \fbox{\includegraphics[height=0.8\textheight]{saom_nws2}} \fbox{\includegraphics[height=0.8\textheight]{saom_nws3}}}
+\end{frame}
+
+\begin{frame}
+ \frametitle{TERGM and SAOM: summary}
+ \begin{itemize}
+  \item The TERGM\ldots
+  \begin{itemize}
+   \item is a direct extension of the cross-sectional ERGM.
+   \item makes no assumptions about continuous timing.
+   \item is tie-based: assumptions can be introduced through subgraph products.
+   \item has a clearly defined role of prior network states.
+   \item typical use case: international conflict over many years.
+  \end{itemize}
+  \item The SAOM\ldots
+  \begin{itemize}
+   \item is based on a mini-step simulation process.
+   \item simulates forward from the previous time step.
+   \item makes several specific assumptions about network formation, which may or may not be valid in a given case.
+   \item may be closer to theory (but may be led astray if not).
+   \item typical use case: friendships in school classes over several interview waves.
+  \end{itemize}
+  \item One model or the other fits better depending on which model's assumptions are better met by the case, as shown using simulations \citep{leifeld2019theoretical}.
+ \end{itemize}
+\end{frame}
+
+\begin{frame}
+ \frametitle{Software solution for out-of-sample comparison}
+ \begin{itemize}
+  \item The \texttt{btergm} package for \texttt{R} \citep{leifeld2018temporal} facilitates GOF comparisons across SAOM and TERGM.
+  \item \texttt{btergm}, \texttt{mtergm}, \texttt{tbergm} functions for estimation of TERGM.
+  \item \texttt{gof} function for goodness-of-fit assessment:
+  \begin{itemize}
+   \item endogenous fit
+   \item ROC, precision--recall curve, area under the curve
+  \end{itemize}
+  \item The \texttt{gof} function accepts TERGMs, SAOMs, and other models.
+ \end{itemize}
+ \hfill{\includegraphics{saom_Rlogo}}
+\end{frame}
+
+\begin{frame}
+	\frametitle{References}
+	\scriptsize
+	\bibliographystyle{apalike}
+	\bibliography{references.bib}
+\end{frame}
+
+\end{document}
