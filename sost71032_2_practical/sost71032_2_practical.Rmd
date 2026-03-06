@@ -1,0 +1,195 @@
+---
+title: "Practical 2: ERGM: Specification"
+author: "Developed by Philip Leifeld and delivered by Jingyi Kang"
+date: "16 March 2026"
+---
+
+In this practical, you will learn how to estimate ERGMs using the `ergm` package, a part of `statnet`.
+
+Although learning the commands for estimating ERGMs and assessing goodness of fit does not require many commands, as you will see below, it does require extensive practice to get it right.
+
+Please spend a while at home browsing model terms under `?"ergm-terms"` and reading the articles in the special issue of the Journal of Statistical Software to understand the different model terms, and then get back to practicing the ERGM application examples in the exercises.
+
+You may find that ERGMs often display model degeneracy, i.e., their estimation does not complete or fails entirely due to poor model fit.
+We are spending two practical sessions on ERGMs so you can get into the habit of finding non-degenerate model specifications using an iterative workflow that alternates between specification, estimation, and goodness-of-fit assessment until you find a model that is theoretically insightful and fits the data well without exhibiting degeneracy.
+This will also be your goal in the formative and summative assessments.
+
+
+# ERGM estimation and diagnostics for policy networks
+The following example illustrates the workflow using the `chemnet` data.
+
+## Load packages and data
+
+Load packages and data.
+```{r}
+library("network")
+library("sna")
+library("ergm")
+library("texreg")
+
+seed <- 12345
+set.seed(seed)
+
+data("chemnet", package = "btergm")
+```
+
+## Data preparation
+
+We want to explain 1) political and strategic (`pol`) and 2) technical and scientific (`sci`) information exchange between political actors using an ERGM, using common committe memberships, organisation types, belief similarity, influence attribution, and other data.
+
+First, create the data structures from the 2012 AJPS article by Leifeld and Schneider.
+```{r}
+# create confirmed network relation
+sci <- scito * t(scifrom)  # equation 1 in the AJPS paper
+prefsim <- dist(intpos, method = "euclidean")  # equation 2
+prefsim <- max(prefsim) - prefsim  # equation 3
+prefsim <- as.matrix(prefsim)
+committee <- committee %*% t(committee)  # equation 4
+diag(committee) <- 0 # the diagonal has no meaning
+types <- types[, 1]  # convert to vector
+```
+
+Store organisation types in network objects.
+```{r}
+# create network objects and store attributes
+nw.pol <- network(pol) # political/stratgic information exchange
+set.vertex.attribute(nw.pol, "orgtype", types)
+
+nw.sci <- network(sci) # technical/scientific information exchange
+set.vertex.attribute(nw.sci, "orgtype", types)
+```
+
+## ERGM estimation and interpretation of results
+
+Estimate a simple ERGM, where we explain political information exchange only via a baseline probability (i.e., the number of edges) and belief similarity.
+```{r}
+# ERGM: model 1 in the AJPS paper; only preference similarity
+model1 <- ergm(nw.pol ~ edges + edgecov(prefsim),
+               control = control.ergm(seed = seed))
+```
+
+Display the results of the estimation, and think about what those coefficients and standard errors mean.
+Think for a moment about what these results tell you about how policy networks work.
+```{r}
+summary(model1)
+```
+
+Next, estimate a more complete model, which displays results similar to what was printed in the AJPS article.
+(The coefficients are not completely identical to the printed version but similar enough because the package was updated in recent years.)
+Notice how the estimation takes much longer and proceeds through several steps.
+That's because MCMC-MLE is now used for estimation because endogenous network statistics are part of the model specification.
+The previous model was able to use MPLE because there were no endogenous model terms.
+Discuss how the previous result changes after controlling for those other model terms.
+Think about the interpretation of each model term and about what the results tell you about how policy networks work.
+```{r}
+# ERGM: model 2 in the AJPS paper; complete model
+model2 <- ergm(nw.pol ~
+                 edges +
+                 edgecov(prefsim) +
+                 mutual +
+                 nodemix("orgtype", base = -7) +
+                 nodeifactor("orgtype", base = -1) +
+                 nodeofactor("orgtype", base = -5) +
+                 edgecov(committee) +
+                 edgecov(nw.sci) +
+                 edgecov(infrep) +
+                 gwesp(0.1, fixed = TRUE) +
+                 gwdsp(0.1, fixed = TRUE),
+               control = control.ergm(seed = seed)
+)
+summary(model2)
+```
+
+We will do the same for scientific information exchange.
+```{r}
+# ERGM: model 3 in the AJPS paper; only preference similarity
+model3 <- ergm(nw.sci ~ edges + edgecov(prefsim),
+               control = control.ergm(seed = seed))
+summary(model3)
+
+# ERGM: model 4 in the AJPS paper; complete model
+model4 <- ergm(nw.sci ~
+                 edges +
+                 edgecov(prefsim) +
+                 mutual +
+                 nodemix("orgtype", base = -7) +
+                 nodeifactor("orgtype", base = -1) +
+                 nodeofactor("orgtype", base = -5) +
+                 edgecov(committee) +
+                 edgecov(nw.pol) +
+                 edgecov(infrep) +
+                 gwesp(0.1, fixed = TRUE) +
+                 gwdsp(0.1, fixed = TRUE),
+               control = control.ergm(seed = seed)
+)
+summary(model4)
+```
+
+Let's look at these models side-by-side.
+What are the differences, and what do they mean substantively?
+```{r}
+# regression table using the texreg package
+screenreg(list(model1, model2, model3, model4))
+```
+
+## Goodness of fit
+
+Models 2 and 4 were ERGM specifications that fit the data relatively well (though not perfectly).
+Their goodness of fit is acceptable.
+But we need to check.
+Start with Model 2.
+Think about where the model fits well and where there is room for improvement.
+```{r}
+# goodness of fit using the btergm package
+gof2 <- ergm::gof(model2) # ergm:: for clarity because btergm also has a gof function
+gof2  # print gof output
+plot(gof2)  # visual inspection of GOF
+```
+
+In your own models you will estimate later, you may find that models fit much less well.
+It's important to complete this step, then think about which model terms to drop or include additionally, with a view to how the network may have been generated, and make changes to your model accordingly.
+In your own modelling later, you need to follow this iterative procedure until your model fits well.
+For now, do the same for Model 4, and think about model fit again.
+```{r}
+gof4 <- gof(model4)
+gof4
+plot(gof4)
+```
+
+You can also use the `gof` function from the `btergm` package, rather than the one from the `ergm` package used above.
+
+```{r}
+gof2_btergm <- btergm::gof(model2)
+plot(gof2_btergm)
+```
+
+## Model degeneracy
+
+We can also check the MCMC diagnostics.
+Details on this are covered in the next lecture, but it's already good to know how to produce these insights with code.
+Start with Model 2.
+```{r}
+mcmc.diagnostics(model2)
+```
+
+Reflect on whether you understand what the diagnostics show and if anything can be improved (in the second ERGM practical at the latest).
+Repeat this step for Model 4.
+```{r}
+mcmc.diagnostics(model4)
+```
+
+## Simulate networks
+
+```{r}
+sim <- simulate(model2, nsim = 3)
+sim[[3]] # e.g., access the third simulated network
+sapply(sim, plot)
+```
+
+# Exercise: Tamper with the model specification
+Drop some of the model terms in the policy network example, and add them in again step by step and re-estimate the model. Read up on additional model terms in the help pages. Play with the model specification, and try to find an alternative specification that also converges and displays an adequate goodness of fit. Think about how you would decide between the different models by looking at the fit (and potentially MCMC diagnostics).
+
+# Exercise: ERGM model for the organisational network
+Apply the same logic illustrated here to Rob Cross's organisational network.
+Can you find a reasonable non-degenerate model that also fits well?
+Team up with other students to find a good model.

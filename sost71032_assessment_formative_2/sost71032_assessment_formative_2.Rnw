@@ -26,7 +26,7 @@
 
 \title{Formative Assessment II}
 \author{SOST71032 Statistical Models for Social Networks -- 2025/26 \\ University of Manchester, Department of Social Statistics}
-\date{16 March 2026}
+\date{13 April 2026}
 
 \begin{document}
 \maketitle

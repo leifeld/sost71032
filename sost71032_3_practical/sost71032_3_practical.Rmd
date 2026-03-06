@@ -1,0 +1,141 @@
+---
+title: "Practical 3: ERGM: Estimation and Sampling"
+author: "Developed by Philip Leifeld and delivered by Jingyi Kang"
+date: "23 March 2026"
+---
+
+# ERGM estimation and diagnostics with the Swiss co-authorship dataset
+
+The goal in this script is to replicate the analysis from Leifeld (2018) in Physica A: Statistical Mechanics (referenced on the lecture slides).
+
+## Data preparation
+
+Load packages and data.
+
+```{r}
+library("network")
+library("sna")
+library("ergm")
+library("texreg")
+
+seed <- 12345
+set.seed(seed)
+
+data("ch_coauthor", package = "btergm")
+```
+
+Create the `network` object, and store attributes.
+```{r}
+ch_nw <- network(ch_coaut, directed = FALSE)
+set.vertex.attribute(ch_nw, "frequency", ch_nodeattr$num_publications)
+set.vertex.attribute(ch_nw, "status", as.character(ch_nodeattr$status))
+set.vertex.attribute(ch_nw, "male", ch_nodeattr$male)
+set.vertex.attribute(ch_nw, "share_en_articles",
+                     ch_nodeattr$share_en_articles)
+```
+
+Create a covariate matrix where a 1 indicates that two authors have the same affiliation.
+We use some matrix multiplication to do this efficiently, but we could have used nested loops or other means.
+```{r}
+# create same affiliation matrix
+ch_inst_indices <- which(grepl("^inst_.+", colnames(ch_nodeattr)))
+ch_same_affiliation <- as.matrix(ch_nodeattr[, ch_inst_indices]) %*%
+  t(ch_nodeattr[, ch_inst_indices])
+```
+
+Create a covariate matrix indicating whether two authors work at the same chair or in the same research group within a department.
+To do so, we use nested loops and check if two authors have both the same chair title *and* the same institutional affiliation (because the same chair title could exist in two universities, for example "Comparative Politics").
+```{r}
+# create same chair matrix
+ch_nodeattr$chairtitle[ch_nodeattr$chairtitle == ""] <- NA
+ch_same_chair <- matrix(0, nrow = nrow(ch_same_affiliation),
+                        ncol = ncol(ch_same_affiliation))
+for (i in 1:length(ch_nodeattr$chairtitle)) {
+  for (j in 1:length(ch_nodeattr$chairtitle)) {
+    if (i != j &&
+        !is.na(ch_nodeattr$chairtitle[i]) &&
+        !is.na(ch_nodeattr$chairtitle[j]) &&
+        ch_nodeattr$chairtitle[i] == ch_nodeattr$chairtitle[j] &&
+        ch_same_affiliation[i, j] == TRUE) {
+      ch_same_chair[i, j] <- 1
+    }
+  }
+}
+rownames(ch_same_chair) <- rownames(ch_same_affiliation)
+colnames(ch_same_chair) <- colnames(ch_same_affiliation)
+```
+
+Create a supervision covariate matrix using element-wise multiplication of the same-affiliation matrix, same-chair matrix, and a new matrix indicating that one author is a professor while the other one isn't.
+```{r}
+# create supervision matrix (same chair + affiliation + mixed seniority)
+ch_supervision <- ch_same_affiliation *
+  ch_same_chair *
+  matrix(ch_nodeattr$status == "professor",
+         nrow = nrow(ch_same_chair),
+         ncol = ncol(ch_same_chair),
+         byrow = FALSE) *
+  matrix(ch_nodeattr$status != "professor",
+         nrow = nrow(ch_same_chair),
+         ncol = ncol(ch_same_chair),
+         byrow = TRUE)
+```
+
+## ERGM estimation
+
+We are now ready to estimate the full ERGM reported in Leifeld (2018) in Physica A: Statistical Mechanics and its Applications (referenced on the lecture slides).
+We use the `control` argument to supply additional MCMC-MLE tweaks for the estimation; don't worry about them for now, but do read up on `control.ergm` in the help pages next week.
+At home, look at the paper and make sure you understand what's happening in this model and how to interpret the numbers.
+```{r}
+ch_model <- ergm(ch_nw ~
+                   edges +
+                   gwesp(0.3, fixed = TRUE) +
+                   gwdegree(0.4, fixed = TRUE) +
+                   nodecov("frequency") +
+                   nodefactor("status") +
+                   nodefactor("male") +
+                   nodematch("male") +
+                   edgecov(ch_dist100km) +
+                   edgecov(ch_same_affiliation) +
+                   edgecov(ch_same_chair) +
+                   edgecov(ch_supervision) +
+                   edgecov(ch_topicsim) +
+                   nodecov("share_en_articles") +
+                   edgecov(ch_en_article_sim),
+                 control = control.ergm(MCMLE.termination = "Hummel",
+                                        MCMLE.effectiveSize = NULL))
+summary(ch_model)  # corresponds Column 1 in Table 3 in Leifeld (2018)
+
+# regression table using the texreg package
+screenreg(list(ch_model), single.row = TRUE)
+```
+
+## Goodness of fit
+
+Assess goodness of fit.
+```{r}
+ch_gof <- gof(ch_model)
+plot(ch_gof)  # visual inspection of GOF
+```
+
+## Model convergence and degeneracy evaluation
+
+MCMC diagnostics.
+```{r}
+mcmc.diagnostics(ch_model)
+```
+
+# Exercise: Simulation
+Simulate new networks from the estimated model above.
+Do the simulations look like the original network you have visualised and explored so often?
+Can you come up with other metrics or criteria to assess the goodness of fit by comparing simulated with observed networks than the ones implemented in the `gof` function, perhaps by taking into account the exogenous covariates or other criteria?
+
+# Exercise: Play with the model specification
+Reparameterise the model with different specifications.
+Compare the model fit and MCMC diagnostics.
+Can you come up with a specification that also fits well but comes to different substantive conclusions?
+
+# Exercise: Application to the Putin dataset
+Estimate a bipartite (two-mode) ERGM for the Putin dataset.
+Select the right model terms that work well and make sense in a bipartite setting.
+Can you find a specification that works well with the data?
+Why could it be a bad idea to apply ERGMs to this dataset?
