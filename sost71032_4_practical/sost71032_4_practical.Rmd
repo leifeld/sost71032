@@ -1,0 +1,253 @@
+---
+title: "Practical 4: Panel Network Models"
+author: "Developed by Philip Leifeld and delivered by Jingyi Kang"
+date: "20 April 2026"
+---
+
+A preparatory step to avoid output getting sliced up into different boxes when compiling this document.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE)
+```
+
+# Temporal ERGMs: A simple example with international alliances
+
+## Data preparation
+
+Load packages and data.
+Load the `alliances` data, which contain bilateral defensive alliances among 164 countries over a 20-year span.
+See the help page (`?alliances`) for more details about the data (after loading `btergm`).
+
+```{r}
+library("network")
+library("ergm")
+library("btergm")
+library("texreg")
+
+set.seed(12345)
+
+data("alliances")
+```
+
+We will jump right in and estimate the first TERGM.
+Note the linear time trend, autoregression term, and 50 bootstrap replications.
+This will take a minute to complete because a pretty large logit model has to be estimated 50 times.
+We should normally use something like `R = 1000` for effective bootstrapping, so keep in mind this low number is just for illustration in class.
+We could speed this up massively by running this in parallel.
+The help page for the btergm function (`?btergm`) contains details on how to do so.
+At home, figure out how many cores you have in the computer you are working with, and try out parallel computation.
+
+```{r}
+m1 <- btergm(allyNet ~ edges + timecov(transform = function(t) t)
+     + memory("autoregression") + gwesp(0, fixed = TRUE) + edgecov(LSP)
+     + edgecov(warNet) + nodecov("polity") + nodecov("cinc") + absdiff("polity")
+     + absdiff("cinc") + edgecov(contigMat), R = 50)
+```
+
+Display the output.
+
+```{r}
+summary(m1)
+```
+
+Think about the interpretation of the results for a moment.
+E.g., what does each model term express substantively?
+What is the difference between "Estimate" and "Boot mean"?
+How is the confidence interval constructed, and what does it mean?
+
+We can display the results with nicer labels in a proper table and think about it some more.
+First, we need to create a mapping between the coefficient names in the results and the new names we want to use.
+
+```{r}
+map <- list("edges" = "Edges",
+            "edgecov.timecov1[[i]]" = "Linear time",
+            "edgecov.memory[[i]]" = "Autoregression",
+            "edgecov.LSP[[i]]" = "Shared allies at $t-1$",
+            "gwesp.fixed.0" = "GWESP",
+            "edgecov.warNet[[i]]" = "War",
+            "nodecov.polity" = "Polity score (sender)",
+            "absdiff.polity" = "Polity score (absdiff)",
+            "nodecov.cinc" = "Capabilities (sender)",
+            "absdiff.cinc" = "Capabilities (absdiff)",
+            "edgecov.contigMat[[i]]" = "Direct contiguity")
+```
+
+We can feed this map into `screenreg` (or `texreg`, `knitreg`, `htmlreg`, `plotreg`, or `wordreg`, depending out the desired output format).
+
+```{r}
+screenreg(m1, single.row = TRUE, custom.coef.map = map,
+       custom.model.names = c("Bootstrapped MPLE"), include.aic = FALSE)
+```
+
+This was estimated using the `btergm` function, i.e., with MPLE and temporal bootstrapping.
+We could do the same thing now with MCMC-MLE using the `mtergm` function.
+This takes even longer (about an hour in this case, and it will often be prohibitively long, as in multiple human lifetimes) with complex and large network datasets or near-degenerate models.
+We set `eval = FALSE` in the chunk options so this does not get evaluated by default.
+If you want to run it, please do so at home, but the results are already shown on the slides.
+```{r, eval = FALSE}
+m2 <- mtergm(allyNet ~ edges + timecov(transform = function(t) t)
+    + memory("autoregression") + gwesp(0, fixed = TRUE) + edgecov(LSP)
+    + edgecov(warNet) + nodecov("polity") + nodecov("cinc")
+    + absdiff("polity") + absdiff("cinc") + edgecov(contigMat))
+```
+
+Assess goodness of fit.
+This will simulate from all 20 time points and put the GOF results for all time points into a single plot.
+It takes a couple of minutes.
+This can also be parallelised; see help pages.
+We should normally do 1,000 simulations or more overall.
+Since we have 19 time steps, 100 per time step would be plenty (i.e., the default setting `nsim = 100`).
+Here, we do just 20 simulations per time step to keep the time it takes manageable for illustration.
+
+```{r, out.width = "100%", fig.width = 8, fig.height = 5}
+g <- gof(m1,
+         nsim = 20,
+         statistics = c(dsp, esp, deg, ideg, geodesic, walktrap.modularity))
+plot(g)
+```
+
+# A more advanced TERGM example with node composition change
+
+This example is about evolving friendships in a school class.
+See `?knecht` for details.
+
+```{r}
+data("knecht", package = "btergm")
+sapply(friendship, dim) # composition change over time...
+```
+
+Make sure the network matrices have row labels.
+Otherwise, the function won't be able to match nodes between time points.
+Here, all matrices initially have the same dimensions, and missing data are denoted using special numbers.
+So, it's safe to name them as consecutive integer numbers.
+We need to do the same thing with the primary school co-attendance covariate matrix and the sex node covariate.
+
+```{r}
+for (i in 1:length(friendship)) {
+  rownames(friendship[[i]]) <- 1:nrow(friendship[[i]])
+  colnames(friendship[[i]]) <- 1:ncol(friendship[[i]])
+}
+rownames(primary) <- rownames(friendship[[1]])
+colnames(primary) <- colnames(friendship[[1]])
+sex <- demographics$sex
+names(sex) <- 1:length(sex)
+```
+
+Imputation of NAs and removal of absent nodes.
+
+```{r}
+friendship <- handleMissings(friendship, na = 10, method = "remove")
+friendship <- handleMissings(friendship, na = NA, method = "fillmode")
+```
+
+Adjust dimensions and add nodal covariates to the networks.
+Dimension adjustment means we shorten the `sex` vector where necessary by removing the entries that are missing in the friendship network at the respective time point after removing absent nodes in the previous step.
+We then save it as a covariate in the network object at the respective time step.
+
+```{r}
+for (i in 1:length(friendship)) {
+  s <- adjust(sex, friendship[[i]])
+  friendship[[i]] <- network(friendship[[i]])
+  friendship[[i]] <- set.vertex.attribute(friendship[[i]], "sex", s)
+}
+sapply(friendship, network.size) # check network dimensions over time
+```
+
+Plot the networks.
+
+```{r, out.width = "100%"}
+par(mfrow = c(2, 2), mar = c(0, 0, 1, 0))
+for (i in 1:length(friendship)) {
+  plot(network(friendship[[i]]), main = paste("t =", i),
+  usearrows = TRUE, edge.col = "grey50")
+}
+```
+
+For estimation, we could put the formula directly into the `btergm` or `mtergm` call as usual, but we'll save a few lines of code by first saving the formula and then re-using it a couple of times.
+Reflect on what the different model terms mean.
+Use the help pages and JStatSoft article on `btergm` to find out if you are unsure.
+
+```{r}
+f <- friendship ~ edges + mutual + delrecip + istar(2) + memory(type = "stability") +
+    nodeofactor("sex") + nodeifactor("sex") + nodematch("sex") + edgecov(primary)
+```
+
+Use this formula in bootstrapped MPLE estimation.
+
+```{r}
+m3 <- btergm(f, R = 1000)
+```
+
+Estimate the same model using MCMC-MLE.
+Note that we need to increase the sample size and MCMC interval to avoid degeneracy in sampling networks (and hence estimation).
+
+```{r}
+m4 <- mtergm(f, control = control.ergm(MCMC.samplesize = 5000, MCMC.interval = 2000))
+```
+
+Create a side-by-side regression table to compare results.
+
+```{r}
+map2 <- list("edges" = "Edges",
+             "mutual" = "Reciprocity",
+             "edgecov.delrecip" = "Delayed reciprocity",
+             "edgecov.delrecip[[i]]" = "Delayed reciprocity",
+             "istar2" = "Incoming two-stars",
+             "edgecov.memory[[i]]" = "Edge stability",
+             "edgecov.memory" = "Edge stability",
+             "nodeofactor.sex.2" = "Sex = male (sender)",
+             "nodeifactor.sex.2" = "Sex = male (receiver)",
+             "nodematch.sex" = "Sex (node match)",
+             "edgecov.primary[[i]]" = "Primary school co-attendance",
+             "edgecov.primary" = "Primary school co-attendance")
+
+screenreg(list(m3, m4), single.row = TRUE, custom.coef.map = map2,
+       custom.model.names = c("btergm", "mtergm"))
+```
+
+Goodness of fit with `btergm`.
+
+```{r, out.width = "100%", fig.width = 8, fig.height = 8}
+plot(btergm::gof(m3, joint = FALSE))
+```
+
+Goodness of fit with `mtergm`.
+
+```{r, out.width = "100%", fig.width = 8, fig.height = 8}
+plot(btergm::gof(m4, joint = FALSE))
+```
+
+Out-of-sample prediction.
+Estimate based on the first three time steps and predict the fourth, then run `gof` to see how well forward simulations match with the structure of the left-out fourth network.
+
+```{r, out.width = "100%", fig.width = 8, fig.height = 3}
+f5 <- friendship[1:3] ~ edges + mutual + delrecip + istar(2) +
+    memory(type = "stability") + nodeofactor("sex") + nodeifactor("sex") +
+    nodematch("sex") + edgecov(primary)
+m5 <- btergm(f5, R = 1000)
+g5 <- btergm::gof(m5, nsim = 1000, target = friendship[[4]],
+    formula = friendship[3:4] ~ edges + mutual + delrecip + istar(2) +
+    memory(type = "stability") + nodeofactor("sex") + nodeifactor("sex") +
+    nodematch("sex") + edgecov(primary), coef = coef(m5),
+    statistics = c(esp, triad.undirected, rocpr))
+plot(g5, rgraph = TRUE)
+```
+
+We can also directly simulate new networks out of sample (here: two networks as an example).
+
+```{r}
+tp <- tergmprepare(f) # create objects taking into account composition change
+s <- simulate_formula(tp$networks$t4 ~ edges + mutual + edgecov(tp$delrecip[[3]]) +
+    istar(2) + edgecov(tp$memory[[3]]) + nodeofactor("sex") + nodeifactor("sex") +
+    nodematch("sex") + edgecov(tp$primary[[3]]), coef = unname(coef(m5)),
+    nsim = 2)
+par(mfrow = c(1, 2), mar = c(0, 0, 1, 0))
+lapply(s, plot)
+```
+
+# Exercise: Reparameterisation with `btergm`
+
+Build on the alliance and school class friendship networks and examples by creating your own model specification and estimating it.
+Use different model terms from the `ergm` package as usual, but also look at the help page for `"tergm-terms"`, and try out different temporal specifications, including `delrecip`, `memory`, and `timecov` with different plausible arguments.
+Also vary the covariates you include.
+Assess goodness of fit, and try out-of-sample prediction.
