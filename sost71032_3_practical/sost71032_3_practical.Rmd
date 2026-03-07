@@ -17,6 +17,7 @@ library("network")
 library("sna")
 library("ergm")
 library("texreg")
+require("latticeExtra") # for nicer MCMC diagnostics, but optional
 
 seed <- 12345
 set.seed(seed)
