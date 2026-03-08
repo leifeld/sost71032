@@ -99,7 +99,8 @@ jobs:
             "speedglm","fastglm","ggplot2","heatmaply",
             "remotes","network","sna","ergm","latentnet",
             "statnet","btergm","igraph","tidygraph","ggraph",
-            "texreg","hydra","igraphdata", "lsa", "latticeExtra"
+            "texreg","hydra","igraphdata", "lsa", "latticeExtra",
+            "amen"
           )
 
           missing <- pkgs[!pkgs %in% rownames(installed.packages(lib.loc = lib))]
