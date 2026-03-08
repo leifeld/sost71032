@@ -1,0 +1,431 @@
+---
+title: "Practical 6: Permutation Approaches and Latent Space Models"
+author: "Developed by Philip Leifeld and delivered by Jingyi Kang"
+date: "11 May 2026"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE)
+```
+
+# Conditional uniform graph test (CUG)
+
+## Load packages and data
+
+Install the `statnet.data` package if necessary.
+
+```{r}
+packageVersion("statnet.data") # check if package is installed
+# library("remotes")
+# install_github("statnet/statnet.data")
+```
+
+Load packages and data.
+```{r}
+library("network")
+library("sna") # tested with version 2.8
+library("ergm")
+library("tidygraph")
+library("ggraph")
+library("statnet.data")
+library("vegan")
+library("lsa")
+library("texreg")
+
+data("chemnet", package = "btergm")
+```
+
+## Manual CUG test
+
+Plot reciprocal edges in a different colour.
+```{r}
+plot(network(pol),
+     edge.col = 1 * (pol == 1 & t(pol) == 1) + 1,
+     vertex.col = "green")
+```
+
+Derive the parameters for the CUG test.
+```{r}
+n <- nrow(pol) # number of nodes
+e <- sum(pol) # number of edges (fixed in the simulations)
+non_e <- n * n - n - e # subtract diagonal and edges
+observed <- sum(pol == 1 & t(pol) == 1) / 2
+observed # observed reciprocity
+```
+
+Save matrix indices for valid dyads (i.e., off-diagonal).
+```{r}
+offdiag_indices <- which(row(pol) != col(pol))
+head(offdiag_indices, 40) # show first 20 results; note how 1 and 32 are missing
+```
+
+Create a vector with the right number of edges and non-edges.
+```{r}
+dyads <- c(rep(1, e), rep(0, non_e))
+```
+
+Create an empty matrix.
+```{r}
+mat <- matrix(0, nrow(pol), ncol(pol))
+```
+
+Overwrite the off-diagonal values in the matrix with the zeros and ones in a random (i.e., resampled/permuted/shuffled) order, and calculate reciprocity.
+Repeat 10,000 times.
+```{r}
+results <- sapply(1:10000, function(x) {
+  mat[sample(offdiag_indices)] <- dyads
+  sum(mat == 1 & t(mat) == 1) / 2
+})
+```
+
+Locate the observed reciprocity value in the CUG-based null distribution.
+Is it in the tails?
+I.e., is it unexpectedly large or small?
+```{r}
+xlim <- c(min(c(results, observed)) - 10,
+          max(c(results, observed)) + 20)
+hist(results, xlim = xlim, xlab = "")
+abline(v = quantile(results, c(0.025, 0.975)),
+       col = "blue", lwd = 3, lty = 1)
+abline(v = observed, col = "red", lwd = 3)
+```
+
+## CUG test using the `cug.test` function
+
+You can get various network statistics, such as reciprocity, using the `summary` method in the `ergm` package.
+To do so, write a formula modelling the network as a function of reciprocity (`mutual`) and other summary statistics added on the right-hand side of the tilde (`~`).
+Check out the help pages for `?"ergm-terms"` for a list of terms you can add.
+```{r}
+# same with the ergm package
+summary(network(pol) ~ mutual + edges + istar(2) + twopath)
+```
+
+Another example with two-paths.
+This time, we won't do it manually but use the `cugtest` function in the `sna` package.
+First, create a function that calculates two-paths.
+Then, apply it both to the observed network and permuted networks to create a reference distribution.
+```{r}
+f <- function(x) summary(x ~ twopath)
+obs_twopath <- f(pol)
+results <- cug.test(dat = pol,
+                    FUN = f,
+                    mode = "digraph",
+                    cmode = "edges")
+plot(results)
+
+# p-value:
+1 - ecdf(results$rep.stat)(obs_twopath)
+```
+
+# Exercise: Practice CUG
+
+Apply what you have learned about CUG tests to the other empirical networks you worked with in previous sessions, including `chemnet`, the co-authorship network, Rob Cross's organisational network, and Putin's network.
+
+Explore which network statistics from the ergm package (see `?"ergm-terms"`) could be useful to describe the network structure, and test their univariate effects using CUG tests.
+
+# Plotting multigraphs (recap)
+
+```{r}
+mar <- as.matrix(flomarriage)
+bus <- as.matrix(flobusiness)
+g_mar <- as_tbl_graph(mar, directed = FALSE) |>
+  activate("edges") |>
+  mutate(type = "marriage")
+g_bus <- as_tbl_graph(bus, directed = FALSE) |>
+  activate("edges") |>
+  mutate(type = "business")
+
+g_combined <- graph_join(g_mar, g_bus) |>
+  activate("nodes") |>
+  mutate(wealth = get.vertex.attribute(
+    flomarriage, "wealth"))
+
+# look at the data structure
+print(g_combined, n = 2)
+```
+
+# Quadratic assignment procedure (QAP)
+
+## Distance measures
+
+```{r}
+N <- matrix(c(0, 1, 0, 1, 1,
+              0, 0, 0, 1, 1,
+              0, 1, 0, 0, 1,
+              0, 0, 1, 0, 0,
+              0, 1, 0, 1, 0),
+            byrow = TRUE, nrow = 5)
+
+M <- matrix(c(0, 1, 0, 0, 1,
+              1, 0, 0, 1, 0,
+              0, 1, 0, 0, 1,
+              1, 0, 1, 0, 0,
+              0, 1, 0, 0, 0),
+            byrow = TRUE, nrow = 5)
+
+mat <- matrix(c(N, M),
+              nrow = 2,
+              byrow = TRUE)
+mat
+
+# Jaccard distance (for binary data)
+vegdist(mat, method = "jaccard")[1] # vegan package
+
+# Euclidean distance (for weighted data)
+dist(mat, method = "euclidean")[1]
+
+# correlation (for weighted data)
+cor(mat[1, ], mat[2, ])
+
+# cosine similarity (for weighted data)
+cosine(mat[1, ], mat[2, ])[1, 1] # lsa package
+```
+
+## Manual implementation of bivariate QAP:
+
+```{r}
+# Jaccard similarity (i.e., 1 - distance)
+jac <- 1 - vegdist(matrix(c(mar, bus), nrow = 2, byrow = TRUE), method = "jaccard")
+jac
+n <- nrow(mar)
+qap <- sapply(1:10000, function(x){
+  s <- sample(n) # new order to rearrange marriage matrix
+  mar_perm <- mar[s, s] # apply new order to rows and columns
+  1 - vegdist(matrix(c(mar_perm, bus), nrow = 2, byrow = TRUE), method = "jaccard")
+})
+hist(qap, main = "", xlab = "", xlim = c(0, jac))
+abline(v = quantile(qap, c(0.025, 0.975)), col = "blue", lwd = 3, lty = 1)
+abline(v = jac, col = "red", lwd = 3)
+1 - ecdf(qap)(jac) # QAP p-value
+```
+
+## Implementation in the `sna` package
+
+The `vegdist` function is a bit slow and not very convenient to deal with.
+It does not accept two matrices but tries to apply the Jaccard coefficient to pairs of rows in a single matrix.
+We will therefore write our own implementation using a list of two matrices.
+```{r}
+f_jac <- function(a, b) { # a and b are two adjacency matrices
+  only_a <- sum(a * (1 - b))
+  only_b <- sum((1 - a) * b)
+  a_and_b <- sum(a * b)
+  denominator <- a_and_b + only_a + only_b
+  if (denominator == 0) { # prevent division by zero
+    return(1) # minimal dissimilarity if everything is zero
+  } else {
+    return(a_and_b / denominator)
+  }
+}
+```
+
+Try out the new function and observe it gives us the same similarity as reported above.
+```{r}
+f_jac(bus, mar)
+```
+
+We can now use it in the `qaptest` function in the `sna` package.
+
+```{r}
+q <- qaptest(dat = bus,
+             FUN = f_jac,
+             b = mar,
+             reps = 10000)
+summary(q)
+plot(q)
+```
+
+## Multiple regression quadratic assignment procedure (MRQAP)
+
+### Linear model QAP (for weighted networks)
+
+The examples here are taken from the `netlm` help page.
+First, we create a data structure of four random graphs to try it out with.
+These become our independent variables.
+The `rgraph` function stacks four random graphs into a three-dimensional array, where the first index is for the network and the second and third indices refer to the row and column.
+```{r}
+x <- rgraph(20, 4) # 4 adjacency matrices with 20 nodes
+```
+
+Next, we generate an adjacency matrix with a linear combination of them with a known structure of associations.
+This becomes our dependent variable.
+Not that the fourth network remains unrelated to `y`.
+```{r}
+y <- x[1, , ] + 4 * x[2, , ] + 2 * x[3, , ]
+```
+
+Finally, fit a linear model with QAP test to recover the coefficients.
+We'll try the original QAP version where the dependent network is permuted.
+```{r}
+nl1 <- netlm(y, x, nullhyp = "qapy", reps = 1000)
+summary(nl1)
+```
+
+We can also try Dekker's "semi-partialling plus" procedure, which fixes some biases.
+They yield very similar results here because the networks are random graphs.
+```{r}
+nl2 <- netlm(y, x, nullhyp = "qapspp", reps = 1000)
+summary(nl2)
+```
+
+### Logit model QAP (for binary networks)
+
+If we have a binary dependent network, we need to use a logit model in the QAP test.
+This is implemented in the `netlogit` function.
+First, we create the dependent data structure again via simulation.
+We follow a logit model, i.e., we put the linear combination from above through an inverse logit link function and then sample based on the resulting probabilities to create a binary dependent network.
+```{r}
+y.p <- apply(y, c(1, 2), function(a) {
+  1 / (1 + exp(-a))
+})
+y <- rgraph(20, tprob = y.p)
+```
+
+We can then apply the `netlogit` function in a similar way as the `netlm` function above.
+```{r}
+nl3 <- netlogit(y, x, nullhyp = "qapy", reps = 1000)
+summary(nl3)
+nl4 <- netlogit(y, x, nullhyp = "qapspp", reps = 1000)
+summary(nl4)
+```
+
+These models are supported by the `texreg` package.
+Create a text-based regression table:
+```{r}
+screenreg(list(nl3, nl4))
+```
+
+Or create an HTML regression table:
+```{r, results = "asis"}
+knitreg(list(nl3, nl4), caption = "Models 3 and 4 with netlogit.")
+```
+
+# Exercise: Practice bivariate QAP
+
+Apply what you have learned about QAP tests to the other empirical networks you worked with in previous sessions, including `chemnet`, the co-authorship network, and Rob Cross's organisational network (by testing for an association with a departmental co-membership matrix).
+
+# Exercise: Practice MRQAP
+
+Apply what you have learned about MRQAP to the other empirical networks you worked with in previous sessions, including `chemnet`, the co-authorship network, and Rob Cross's organisational network (by testing for an association with a departmental co-membership matrix).
+
+# Latent Space Models
+
+## Latent space models using `latentnet`
+
+Load the `latentnet` package and prepare the data.
+We want to explain political and strategic information exchange as the dependent variable.
+One of the explanatory variables we want to use is whether a an actor is a government actor.
+I.e., do government actors receive more incoming ties (e.g., because other actors want to lobby them)?
+We need to accommodate a binary government variable in the network object as an attribute for this purpose.
+
+```{r}
+library("latentnet")
+data("chemnet", package = "btergm")
+set.seed(12345)
+pol_nw <- network(pol, directed = TRUE)
+set.vertex.attribute(pol_nw, "gov", types$type == "gov")
+```
+
+Estimate a Euclidean latent space model with two dimensions and a couple of covariates.
+
+```{r}
+m1 <- ergmm(pol_nw ~ euclidean(d = 2) + edgecov(infrep) + nodeifactor("gov"))
+```
+
+Estimate a bilinear latent space model with two dimensions and sender random effect.
+Increase the MCMC burn-in period and interval for better convergence.
+This makes it take a moment longer, but it's necessary for making the estimation converge in this case.
+
+```{r}
+m2 <- ergmm(pol_nw ~ bilinear(d = 2) + rsender + edgecov(infrep) + nodeifactor("gov"),
+            control = ergmm.control(burnin = 50000, interval = 100))
+```
+
+Estimate a (Euclidean) latent cluster model with four clusters.
+
+```{r}
+m3 <- ergmm(pol_nw ~ euclidean(d = 2, G = 4) + edgecov(infrep) + nodeifactor("gov"),
+            control = ergmm.control(burnin = 30000, interval = 50))
+```
+
+Plot the models.
+
+```{r, out.width = "100%", fig.width = 9, fig.height = 3, warning=FALSE}
+par(mfrow = c(1, 3))
+plot(m1)
+plot(m2)
+plot(m3)
+```
+
+Show the regression table with all results.
+
+```{r}
+screenreg(list(m1, m2, m3))
+```
+
+## Latent factor models with `amen`
+
+Load package and data.
+
+```{r}
+library("amen")
+data("chemnet", package = "btergm")
+set.seed(12345)
+```
+
+Prepare data structures.
+`amen` accepts a 3D array of dyadic covariates via the `Xdyad` argument, the equivalent of `statnet`'s `edgecov` term, but with multiple matrices stacked.
+It also accepts separate matrices `Xcol` and`Xrow` with column vectors representing incoming receiver (and outgoing sender, respectively) node covariates.
+We supply influence attribution via `Xdyad` and a government actor type dummy variable via `Xcol`.
+
+```{r}
+edgecovs <- array(numeric(), dim = c(nrow(pol), ncol(pol), 1)) # 30 x 30 x 1
+edgecovs[, , 1] <- infrep
+nodeifactors <- matrix(NA, nrow = nrow(pol), ncol = 1)
+nodeifactors[, 1] <- 1 * (types$type == "gov")
+```
+
+We can also supply row (`rvar`), column (`cvar`), dyad (`dcor`), or node (`nvar`, in undirected networks) random effects (i.e., additive effects).
+Here, we have a directed network, so in Model `m5`, we use the first three to control for additional variation that would otherwise be captured by network statistics in an ERGM.
+We can also supply two-dimensional multiplicative effects, i.e., a bilinear latent space component, via `R = 2`.
+`pol` is binary, so we need a logit link function.
+This is achieved by setting `family = "bin"`.
+The `burn` and `nscan` arguments determine the number of MCMC iterations (10,000 by default) and burn-in iterations that are discarded (500 by default).
+We'll use the defaults here.
+This would need to be increased in more complex models, e.g., for larger networks.
+See `?ame` for additional arguments and options.
+
+```{r}
+# Bilinear (= multiplicative) model with two dimensions without random effects
+m4 <- ame(Y = pol, Xdyad = edgecovs, Xcol = nodeifactors, family = "bin", R = 2,
+          rvar = FALSE, cvar = FALSE, dcor = FALSE, nvar = FALSE, plot = FALSE)
+
+# with additive component: random effects for rows, columns, dyads (but not nodes)
+m5 <- ame(Y = pol, Xdyad = edgecovs, Xcol = nodeifactors, family = "bin", R = 2,
+          rvar = TRUE, cvar = TRUE, dcor = TRUE, nvar = FALSE, plot = FALSE)
+```
+
+MCMC diagnostics and goodness of fit.
+
+```{r, out.width = "100%", fig.width = 9, fig.height = 7}
+plot(m5)
+```
+
+Plot the network in the estimated latent bilinear space.
+
+```{r, out.width = "100%", fig.width = 9, fig.height = 7}
+netplot(Y = pol, X = m5$UVPM, plotnames = TRUE)
+```
+
+For comparison, the network without the latent space, just directly plotted using the common Fruchterman-Reingold layout algorithm.
+
+```{r, out.width = "100%", fig.width = 9, fig.height = 7}
+netplot(Y = pol, X = xnet(pol), plotnames = TRUE)
+```
+
+# Exercise: Latent space model applications
+Estimate latent space models with `latentnet` and `amen` for Rob Cross's organisational dataset.
+Reflect on your modelling choices regarding space, dimensionality, covariates, random effects, and clustering.
+Compare your results to the ERGM you estimated before.
+Do you see any differences?
+
+When you are done, conduct such an analysis also for the Swiss political science co-authorship network dataset, and follow the same instructions as noted above.
