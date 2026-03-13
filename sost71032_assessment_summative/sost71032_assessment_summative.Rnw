@@ -1,0 +1,127 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{top=3cm, bottom=3cm, left=3cm, right=3cm}
+\usepackage{natbib}
+\usepackage{fvextra}
+\RecustomVerbatimEnvironment{verbatim}{Verbatim}{breaklines,breakanywhere}
+\usepackage{hyperref}
+\hypersetup{
+  pdftitle={Summative Assessment},
+  pdfauthor={Philip Leifeld},
+  pdfkeywords={social network analysis, SNA, SOST71032},
+  pdfsubject={},
+  breaklinks=true,
+  colorlinks=true,
+  urlcolor=darkblue,
+  linkcolor=darkblue,
+  citecolor=darkred,
+  bookmarksnumbered
+}
+
+\definecolor{darkred}{rgb}{0.8,0.1,0.1}
+\definecolor{darkblue}{rgb}{0.1,0.1,0.8}
+\definecolor{darkgreen}{cmyk}{1.0,0,1.0,0.2}
+
+\title{Summative Assessment}
+\author{SOST71032 Social Network Analysis -- 2025/26 \\ University of Manchester, Department of Social Statistics}
+\date{11 May 2026}
+
+\begin{document}
+\maketitle
+
+<<setup, include=FALSE, cache=FALSE>>=
+library("knitr")
+# set global chunk options
+opts_chunk$set(fig.path = 'figure/fig-', fig.align = 'center', fig.show = 'hold')
+knit_hooks$set(crop=hook_pdfcrop)
+@
+
+\section{Dataset}
+You will analyse the co-authorship network between political scientists in the Berlin--Brandenburg region of Germany between 2009 and 2013.
+The data comprise 227 academics who published 4,155 pieces of work during these five years.
+The dataset is a subset of the data collected by \citet{leifeld2017collaboration} and \citet{leifeld2018polarization}.
+
+\medskip
+
+\noindent Load the dataset as follows:
+<<dataset>>=
+load("berlin.RData")
+@
+
+\noindent You will find a $227 \times 4155$ \texttt{authorship} matrix in this dataset, in which a 1 indicates that a row author was listed as a co-author in the column publication.
+<<authorship>>=
+dim(authorship)
+@
+
+\noindent You can transform it into a $227 \times 227$ co-authorship matrix with counts of joint publications between the row and column authors by multiplying the authorship matrix by its transpose.
+<<coauthorship>>=
+coaut <- authorship %*% t(authorship)
+dim(coaut)
+@
+
+\noindent Attributes of the authors are contained in a data frame called \texttt{persons}.
+It contains some of the authors twice if they have two different affiliations.
+<<persons>>=
+str(persons)
+@
+
+\noindent Attributes of the publications are contained in a data frame called \texttt{publications}.
+The \texttt{id} column in this data frame references the column names in the \texttt{authorship} matrix.
+<<publications>>=
+str(publications)
+@
+
+\noindent A data frame called \texttt{institutions} contains the eight universities and research institutes in Berlin and Brandenburg the political scientists were affiliated with at the time of data collection in 2014/15, including their spatial coordinates.
+<<>>=
+str(institutions)
+@
+
+\noindent A $227 \times 227$ matrix called \texttt{topic\_similarity} contains the cosine similarity between all author pairs based on lemmatised words used in the titles of their publications, excluding publications both individuals co-authored.
+Details are explained in \citet{leifeld2018polarization}.
+<<topic_similarity>>=
+dim(topic_similarity)
+summary(c(topic_similarity))
+@
+
+\section{Data analysis}
+The analysis will consist of two parts.
+The first part will conduct a descriptive, exploratory network analysis of the data with the aim of uncovering theoretically meaningful patterns that will inform the statistical model in the second part.
+This analysis will include exactly one network visualisation and several metrics such as density and other descriptive network statistics.
+Do your best to describe and explore the network to support the analysis narrative in the second part.
+Develop a coherent and consistent explanation of how the network formed, supported by descriptive evidence.
+
+The second part of the analysis will present the results of an estimated exponential random graph model (ERGM) of the Berlin--Brandenburg co-authorship network.
+You may present more than one model if useful for your analysis, but this is not expected.
+The analysis should translate the theoretical narrative about network formation mechanisms developed in the first part into testable model terms and include them in the ERGM.
+The usual workflow of iterative specification, estimation, goodness-of-fit assessment and convergence diagnostics should be followed before picking the model to present in the assignment, as learned in the module.
+You may reflect on earlier specifications and the iterative process, but only if it helps with your argument.
+The model you present should fit the data well from a structural perspective.
+The discussion should reflect on the model specification, interpretation of results, broader conclusions based on the interpretation, and goodness of fit.
+You should present a table with the results and a goodness-of-fit plot or table to support your findings.
+
+\section{Report}
+Consult the methodological, theoretical, and empirical literature relevant to your analysis, and include references as appropriate.
+You are not expected to describe the methods of analysis (e.\,g., what is social network analysis, how network measures are calculated, or what they mean in general terms).
+Instead, focus on justifying your analytical choices and describing and interpreting your results, also in the broader context of the dataset.
+While working on your analysis, consult the lecture and practical materials.
+
+Write a concise report of up to 2,000 words excluding tables, figures, and references.
+The entire report should resemble a publishable research note or article in the ideal case, with the usual structural from introduction to conclusion.
+If in doubt about the steps, consult the instructions given in the first formative assessment for the first part and the second formative assessment for the second part of the analysis in this assessment.
+
+\section{Submission}
+\begin{itemize}
+  \item Use RMarkdown to create the report. You already know the format from the practicals and formative assessments.
+  \item Submit both the \texttt{.Rmd} and compiled \texttt{.html} or \texttt{.pdf} file.
+  \item The report should be submitted by the deadline via Canvas.
+  \item Use the submission title of \texttt{student ID + title}.
+\end{itemize}
+
+\bibliographystyle{apalike}
+\bibliography{literature}
+
+\end{document}
